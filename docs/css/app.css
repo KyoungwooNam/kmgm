@@ -1,17 +1,21 @@
 @import url("https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css");
-@import url("https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&display=swap");
 
+/* KMGM 멤버스 앱에서 추출한 브랜드 색 */
 :root {
-  --felt: #114833;
-  --felt-deep: #0b2419;
-  --ink: #f3ead6;
-  --muted: #cbbd9a;
-  --gold: #e0c36a;
-  --gold-deep: #b68a2a;
-  --wood: #3b2414;
-  --card: #fffaf0;
-  --danger: #e07a6a;
-  --shadow: 0 18px 40px rgba(0, 0, 0, 0.35);
+  --navy: #283038;
+  --navy-deep: #1c2228;
+  --navy-card: #303038;
+  --ink: #f8f8f8;
+  --muted: #a8b0b8;
+  --coral: #f05848;
+  --coral-deep: #e85848;
+  --mint: #38c078;
+  --felt: #1a5c43;
+  --wood: #2a1c12;
+  --card: #fffdf8;
+  --danger: #f05848;
+  --shadow: 0 16px 36px rgba(0, 0, 0, 0.35);
+  --line: rgba(248, 248, 248, 0.14);
 }
 
 * {
@@ -28,9 +32,10 @@ body {
   color: var(--ink);
   font-family: Pretendard, "Noto Sans KR", sans-serif;
   background:
-    radial-gradient(1200px 500px at 50% -10%, rgba(224, 195, 106, 0.12), transparent 55%),
-    radial-gradient(900px 600px at 100% 100%, rgba(20, 90, 60, 0.4), transparent 50%),
-    var(--felt-deep);
+    radial-gradient(900px 420px at 50% -8%, rgba(240, 88, 72, 0.16), transparent 50%),
+    var(--navy-deep);
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
 }
 
 button,
@@ -50,51 +55,63 @@ a {
 #app {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 20px 20px 64px;
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(16px, env(safe-area-inset-right))
+    max(28px, env(safe-area-inset-bottom))
+    max(16px, env(safe-area-inset-left));
 }
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 28px;
+  gap: 12px;
+  margin-bottom: 22px;
 }
 
 .brand {
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
+  min-width: 0;
 }
 
 .logo {
-  font-family: "Cormorant Garamond", serif;
-  font-size: 32px;
-  letter-spacing: 0.16em;
-  color: var(--gold);
+  font-family: Pretendard, sans-serif;
+  font-size: 28px;
+  font-weight: 900;
+  font-style: italic;
+  letter-spacing: -0.06em;
+  color: #fff;
+  text-shadow: 2px 3px 0 rgba(0, 0, 0, 0.45);
 }
 
 .tagline,
 .text-link {
   color: var(--muted);
-  font-size: 14px;
+  font-size: 13px;
+  white-space: nowrap;
 }
 
 .text-link:hover {
-  color: var(--gold);
+  color: var(--coral);
 }
 
 .top-actions {
   display: flex;
   align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
   gap: 8px;
+  flex-shrink: 0;
 }
 
 .admin-badge {
   padding: 4px 10px;
-  border: 1px solid var(--gold);
+  border: 1px solid var(--coral);
   border-radius: 999px;
-  color: var(--gold);
+  color: var(--coral);
   font-size: 12px;
 }
 
@@ -107,33 +124,35 @@ a {
 }
 
 .gold {
-  background: var(--gold);
-  color: #1b1308;
-  padding: 8px 14px;
+  background: var(--coral);
+  color: #fff;
+  padding: 10px 14px;
   font-weight: 700;
+  min-height: 44px;
 }
 
 .ghost {
   background: transparent;
   color: var(--ink);
-  border-color: rgba(243, 234, 214, 0.25);
-  padding: 8px 14px;
+  border-color: var(--line);
+  padding: 10px 14px;
+  min-height: 44px;
 }
 
 .ghost.danger {
   width: 100%;
   margin-top: 12px;
-  color: var(--danger);
-  border-color: rgba(224, 122, 106, 0.4);
+  color: var(--coral);
+  border-color: rgba(240, 88, 72, 0.4);
 }
 
 .hero {
-  margin: 12px 0 28px;
+  margin: 8px 0 24px;
 }
 
 .eyebrow {
   margin: 0 0 8px;
-  color: var(--gold);
+  color: var(--coral);
   letter-spacing: 0.18em;
   font-size: 12px;
 }
@@ -143,9 +162,9 @@ a {
 .title-edit {
   margin: 0;
   font-family: Pretendard, "Noto Sans KR", sans-serif;
-  font-size: clamp(32px, 5vw, 48px);
+  font-size: clamp(28px, 7vw, 44px);
   font-weight: 800;
-  letter-spacing: -0.02em;
+  letter-spacing: -0.03em;
 }
 
 .lede,
@@ -153,30 +172,31 @@ a {
 .sub-edit {
   color: var(--muted);
   max-width: 42rem;
+  line-height: 1.5;
 }
 
 .event-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 18px;
+  gap: 14px;
 }
 
 .event-card {
   display: block;
-  padding: 28px;
-  background: linear-gradient(180deg, rgba(20, 72, 51, 0.9), rgba(11, 36, 25, 0.95));
-  border: 1px solid rgba(224, 195, 106, 0.28);
+  padding: 24px;
+  background: linear-gradient(180deg, #303840, var(--navy));
+  border: 1px solid var(--line);
   border-radius: 18px;
   box-shadow: var(--shadow);
-  min-height: 240px;
+  min-height: 220px;
 }
 
 .event-card:hover {
-  border-color: var(--gold);
+  border-color: var(--coral);
 }
 
 .event-kicker {
-  color: var(--gold);
+  color: var(--coral);
   font-size: 12px;
   letter-spacing: 0.14em;
 }
@@ -184,7 +204,7 @@ a {
 .event-card h2 {
   margin: 10px 0;
   font-family: Pretendard, "Noto Sans KR", sans-serif;
-  font-size: 32px;
+  font-size: clamp(24px, 6vw, 32px);
   font-weight: 800;
   letter-spacing: -0.03em;
 }
@@ -198,7 +218,7 @@ a {
 .event-card dl {
   display: flex;
   gap: 24px;
-  margin: 24px 0 0;
+  margin: 20px 0 0;
 }
 
 .event-card dt {
@@ -209,20 +229,20 @@ a {
 .event-card dd {
   margin: 4px 0 0;
   font-size: 22px;
-  color: var(--gold);
+  color: var(--coral);
 }
 
 .event-head {
   display: flex;
   justify-content: space-between;
-  gap: 16px;
+  gap: 12px;
   align-items: flex-end;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .winner-strip {
-  background: rgba(224, 195, 106, 0.12);
-  border: 1px solid var(--gold);
+  background: rgba(240, 88, 72, 0.12);
+  border: 1px solid var(--coral);
   border-radius: 12px;
   padding: 12px 16px;
   max-width: 360px;
@@ -230,23 +250,23 @@ a {
 
 .winner-strip strong {
   display: block;
-  color: var(--gold);
+  color: var(--coral);
   font-size: 12px;
   letter-spacing: 0.12em;
 }
 
 .hint {
-  margin: 0 0 16px;
+  margin: 0 0 14px;
 }
 
 .hint b {
-  color: var(--gold);
+  color: var(--coral);
 }
 
 .bingo-layout {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(240px, 0.8fr);
-  gap: 20px;
+  gap: 16px;
   align-items: start;
 }
 
@@ -254,30 +274,30 @@ a {
   background:
     radial-gradient(circle at 30% 20%, rgba(255, 255, 255, 0.06), transparent 32%),
     var(--felt);
-  border: 12px solid var(--wood);
-  border-radius: 28px;
+  border: 10px solid var(--wood);
+  border-radius: 24px;
   box-shadow:
-    inset 0 0 0 3px var(--gold-deep),
+    inset 0 0 0 2px rgba(248, 248, 248, 0.18),
     var(--shadow);
-  padding: 18px;
+  padding: 14px;
 }
 
 .bingo-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .bingo-cell {
-  min-height: 132px;
+  min-height: 120px;
   display: flex;
   flex-direction: column;
   align-items: stretch;
   justify-content: space-between;
-  gap: 8px;
-  padding: 12px;
-  background: rgba(8, 28, 20, 0.55);
-  border: 1px solid rgba(224, 195, 106, 0.25);
+  gap: 6px;
+  padding: 10px;
+  background: rgba(10, 22, 18, 0.55);
+  border: 1px solid rgba(248, 248, 248, 0.16);
   border-radius: 12px;
   color: var(--ink);
   text-align: left;
@@ -288,12 +308,12 @@ a {
 }
 
 .bingo-cell.marked {
-  background: rgba(224, 195, 106, 0.18);
+  background: rgba(240, 88, 72, 0.2);
 }
 
 .bingo-cell.in-line {
-  border-color: var(--gold);
-  box-shadow: inset 0 0 0 1px var(--gold);
+  border-color: var(--coral);
+  box-shadow: inset 0 0 0 1px var(--coral);
 }
 
 .cell-label,
@@ -305,8 +325,8 @@ a {
 
 .cell-label {
   font-weight: 700;
-  font-size: 16px;
-  line-height: 1.35;
+  font-size: 15px;
+  line-height: 1.3;
 }
 
 .cell-edit,
@@ -314,11 +334,12 @@ a {
 .sub-edit,
 .add-form input,
 .modal input {
-  background: rgba(255, 250, 240, 0.08);
-  border: 1px solid rgba(224, 195, 106, 0.4);
+  background: rgba(248, 248, 248, 0.08);
+  border: 1px solid rgba(240, 88, 72, 0.45);
   color: var(--ink);
   border-radius: 8px;
-  padding: 8px 10px;
+  padding: 10px;
+  font-size: 16px;
 }
 
 .title-edit {
@@ -341,19 +362,19 @@ a {
   font-size: 11px;
   padding: 2px 7px;
   border-radius: 999px;
-  background: rgba(243, 234, 214, 0.12);
+  background: rgba(248, 248, 248, 0.14);
 }
 
 .chip.me {
-  background: var(--gold);
-  color: #1b1308;
+  background: var(--coral);
+  color: #fff;
 }
 
 .people {
-  background: rgba(11, 36, 25, 0.85);
-  border: 1px solid rgba(224, 195, 106, 0.2);
+  background: rgba(40, 48, 56, 0.92);
+  border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 16px;
+  padding: 14px;
 }
 
 .people-head,
@@ -401,50 +422,53 @@ a {
 }
 
 .people-list li.on .pick {
-  border-color: var(--gold);
-  background: rgba(224, 195, 106, 0.12);
+  border-color: var(--coral);
+  background: rgba(240, 88, 72, 0.12);
 }
 
 .pick {
   flex: 1;
   background: transparent;
   color: var(--ink);
-  border: 1px solid rgba(243, 234, 214, 0.15);
+  border: 1px solid var(--line);
   border-radius: 10px;
-  padding: 10px 12px;
+  padding: 12px;
   text-align: left;
+  min-height: 44px;
 }
 
 .pick em {
-  color: var(--gold);
+  color: var(--coral);
   font-style: normal;
   font-size: 12px;
 }
 
 .icon-btn {
-  width: 36px;
+  width: 44px;
+  min-height: 44px;
   background: transparent;
   color: var(--muted);
-  border-color: rgba(243, 234, 214, 0.15);
+  border-color: var(--line);
 }
 
 .pocket-board {
-  margin-bottom: 20px;
+  margin-bottom: 16px;
 }
 
 .pocket-cols {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .pair-col {
   text-align: center;
+  min-width: 0;
 }
 
 .pair-col h3 {
-  margin: 10px 0 8px;
-  font-size: 14px;
+  margin: 8px 0 6px;
+  font-size: 13px;
 }
 
 .pair {
@@ -453,21 +477,21 @@ a {
 }
 
 .pcard {
-  width: 46px;
-  height: 64px;
-  margin: 0 -6px;
+  width: 42px;
+  height: 58px;
+  margin: 0 -5px;
   background: var(--card);
   border-radius: 6px;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.28);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
-  padding: 4px 6px;
+  padding: 4px 5px;
   font-weight: 800;
 }
 
 .pcard.red {
-  color: #c0392b;
+  color: var(--coral-deep);
 }
 
 .pcard.black {
@@ -483,15 +507,18 @@ a {
   list-style: none;
   margin: 0;
   padding: 0;
-  min-height: 48px;
-  font-size: 13px;
+  min-height: 40px;
+  font-size: 12px;
+  word-break: keep-all;
 }
 
 .table-wrap {
   overflow-x: auto;
-  background: rgba(11, 36, 25, 0.85);
-  border: 1px solid rgba(224, 195, 106, 0.2);
+  -webkit-overflow-scrolling: touch;
+  background: rgba(40, 48, 56, 0.92);
+  border: 1px solid var(--line);
   border-radius: 16px;
+  scrollbar-color: var(--coral) transparent;
 }
 
 .score {
@@ -503,7 +530,7 @@ a {
 .score td {
   padding: 10px 8px;
   text-align: center;
-  border-bottom: 1px solid rgba(243, 234, 214, 0.08);
+  border-bottom: 1px solid rgba(248, 248, 248, 0.08);
 }
 
 .score th:first-child,
@@ -511,46 +538,56 @@ a {
 .score tbody th {
   text-align: left;
   padding-left: 16px;
+  position: sticky;
+  left: 0;
+  background: #283038;
+  z-index: 1;
 }
 
 .score tr.winner {
-  background: rgba(224, 195, 106, 0.14);
+  background: rgba(56, 192, 120, 0.16);
+}
+
+.score tr.winner th,
+.score tr.winner td:first-child {
+  background: #243830;
 }
 
 .score .status {
-  color: var(--gold);
+  color: var(--mint);
   font-weight: 700;
 }
 
 .mark {
   width: 40px;
   height: 40px;
-  background: rgba(243, 234, 214, 0.06);
+  background: rgba(248, 248, 248, 0.06);
   color: var(--ink);
-  border-color: rgba(224, 195, 106, 0.25);
+  border-color: var(--line);
 }
 
 .mark.on {
-  background: var(--gold);
-  color: #1b1308;
+  background: var(--coral);
+  color: #fff;
   font-weight: 800;
 }
 
 .overlay {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.55);
+  background: rgba(0, 0, 0, 0.62);
   display: grid;
-  place-items: center;
-  padding: 20px;
+  place-items: end center;
+  padding: 16px;
+  padding-bottom: max(16px, env(safe-area-inset-bottom));
 }
 
 .modal {
   width: min(420px, 100%);
-  background: #13281e;
-  border: 1px solid rgba(224, 195, 106, 0.35);
+  background: var(--navy);
+  border: 1px solid var(--line);
   border-radius: 16px;
-  padding: 24px;
+  padding: 22px;
   box-shadow: var(--shadow);
 }
 
@@ -564,27 +601,117 @@ a {
 }
 
 .error {
-  color: var(--danger);
+  color: var(--coral);
+}
+
+@media (min-width: 861px) {
+  .overlay {
+    place-items: center;
+  }
 }
 
 @media (max-width: 860px) {
   .event-grid,
-  .bingo-layout,
-  .pocket-cols {
+  .bingo-layout {
     grid-template-columns: 1fr;
   }
 
-  .event-head,
-  .topbar {
+  .event-head {
     flex-direction: column;
-    align-items: flex-start;
+    align-items: stretch;
+  }
+
+  .winner-strip {
+    max-width: none;
+  }
+
+  .tagline {
+    display: none;
+  }
+
+  .logo {
+    font-size: 24px;
+  }
+
+  .event-card {
+    min-height: 0;
+    padding: 18px;
   }
 
   .bingo-cell {
-    min-height: 110px;
+    min-height: 86px;
+    padding: 8px;
+  }
+
+  .cell-label {
+    font-size: 12px;
+  }
+
+  .felt-board {
+    border-width: 8px;
+    border-radius: 18px;
+    padding: 8px;
+  }
+
+  .pair-col h3 {
+    font-size: 11px;
+  }
+
+  .pcard {
+    width: 28px;
+    height: 40px;
+    margin: 0 -4px;
+    padding: 3px 4px;
+    font-size: 11px;
+  }
+
+  .name-list {
+    display: none;
+  }
+
+  .score th,
+  .score td {
+    padding: 8px 4px;
+    font-size: 12px;
+  }
+
+  .score th:first-child,
+  .score td:first-child,
+  .score tbody th {
+    padding-left: 10px;
+    max-width: 72px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mark {
+    width: 32px;
+    height: 32px;
+    font-size: 11px;
   }
 
   .hero h1 {
-    font-size: 36px;
+    font-size: 28px;
+  }
+
+  .hint {
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 420px) {
+  .gold,
+  .ghost {
+    padding: 8px 10px;
+    font-size: 13px;
+  }
+
+  .bingo-cell {
+    min-height: 74px;
+    gap: 4px;
+  }
+
+  .chip {
+    font-size: 10px;
   }
 }
