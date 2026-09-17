@@ -843,7 +843,17 @@ async function downloadBoard(eventKey, label) {
 }
 
 /**
- * 캔버스를 파일로 내려받거나 공유한다.
+ * iOS에서는 a[download]가 동작하지 않아 공유 시트로 저장한다.
+ *
+ * @return {boolean} iPhone·iPad 여부
+ */
+function isIosDevice() {
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent)
+      || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+/**
+ * 캔버스를 PNG 파일로 저장한다. PC·안드로이드는 다운로드, iOS는 공유 시트.
  *
  * @param {HTMLCanvasElement} canvas 캡처 결과
  * @param {string} filename 파일 이름
@@ -854,14 +864,17 @@ async function saveCanvas(canvas, filename) {
   if (!blob) {
     throw new Error("빈 이미지");
   }
-  const file = new File([blob], filename, {type: "image/png"});
-  if (navigator.canShare && navigator.canShare({files: [file]})) {
-    try {
-      await navigator.share({files: [file], title: filename});
-      return;
-    } catch (error) {
-      if (error && error.name === "AbortError") {
+
+  if (isIosDevice()) {
+    const file = new File([blob], filename, {type: "image/png"});
+    if (navigator.canShare && navigator.canShare({files: [file]})) {
+      try {
+        await navigator.share({files: [file], title: filename});
         return;
+      } catch (error) {
+        if (error && error.name === "AbortError") {
+          return;
+        }
       }
     }
   }
