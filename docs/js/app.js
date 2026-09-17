@@ -194,17 +194,41 @@ function revealActiveNav() {
  * @return {string} HTML
  */
 function renderHome() {
+  const board = [
+    {rank: "A", suit: "♥", color: "red"},
+    {rank: "K", suit: "♠", color: "black"},
+    {rank: "Q", suit: "♥", color: "red"},
+    {rank: "J", suit: "♦", color: "red"},
+    {rank: "10", suit: "♣", color: "black"},
+  ].map((card) => `
+    <span class="play-card ${card.color}">
+      <b>${card.rank}</b>
+      <i>${card.suit}</i>
+      <b class="flip">${card.rank}</b>
+    </span>
+  `).join("");
+
   return `
     <section class="landing">
-      <div class="landing-table" aria-hidden="true">
-        <span class="pcard red landing-card"><b>K</b><i>♥</i></span>
-        <span class="pcard black landing-card"><b>M</b><i>♠</i></span>
-        <span class="pcard red landing-card"><b>G</b><i>♦</i></span>
-        <span class="pcard black landing-card"><b>M</b><i>♣</i></span>
+      <div class="poker-table" aria-hidden="true">
+        <div class="table-inner">
+          <p class="felt-mark">KMGM</p>
+          <div class="chip-stack chips-l">
+            <span class="chip chip-navy"></span>
+            <span class="chip chip-navy"></span>
+            <span class="chip chip-navy"></span>
+          </div>
+          <div class="board-cards">${board}</div>
+          <div class="chip-stack chips-r">
+            <span class="chip chip-coral"></span>
+            <span class="chip chip-coral"></span>
+            <span class="chip chip-coral"></span>
+          </div>
+          <span class="dealer-btn">D</span>
+        </div>
       </div>
-      <p class="eyebrow">HOLDEM PUB</p>
-      <h1>오늘 밤의 테이블</h1>
-      <p class="lede">위 메뉴에서 보드를 고르면 전광판이 바로 켜집니다.</p>
+      <p class="landing-kicker">HOLD'EM &amp; EVENT PUB</p>
+      <p class="landing-caption">위 메뉴에서 오늘의 보드를 고르세요</p>
     </section>
   `;
 }
