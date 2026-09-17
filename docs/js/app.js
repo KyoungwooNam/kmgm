@@ -189,79 +189,6 @@ function revealActiveNav() {
 }
 
 /**
- * 랜딩용 홀덤 테이블 SVG를 그린다.
- *
- * @return {string} SVG HTML
- */
-function renderTableArt() {
-  const card = (x, y, rot, rank, suit, tone) => {
-    const fill = tone === "red" ? "#e24a3c" : "#1b1b1b";
-    return `
-      <g transform="translate(${x} ${y}) rotate(${rot})">
-        <rect x="-27" y="-39" width="54" height="78" rx="7" fill="#1a120c" opacity=".2"/>
-        <rect x="-27" y="-41" width="54" height="78" rx="7" fill="#fffef9" stroke="#eadfce"/>
-        <text x="-16" y="-22" font-size="15" font-weight="800" fill="${fill}" font-family="Pretendard, Noto Sans KR, sans-serif">${rank}</text>
-        <text x="-16" y="-7" font-size="12" fill="${fill}">${suit}</text>
-        <text x="0" y="12" font-size="24" text-anchor="middle" fill="${fill}">${suit}</text>
-      </g>
-    `;
-  };
-
-  const chips = (x, y, color, shade) => `
-    <g transform="translate(${x} ${y})">
-      <ellipse cx="0" cy="11" rx="26" ry="10" fill="${shade}"/>
-      <ellipse cx="0" cy="7" rx="26" ry="10" fill="${color}"/>
-      <ellipse cx="0" cy="3.5" rx="26" ry="10" fill="${color}"/>
-      <ellipse cx="0" cy="0" rx="26" ry="10" fill="${color}"/>
-      <ellipse cx="0" cy="0" rx="16" ry="6" fill="none" stroke="#fff" stroke-opacity=".42" stroke-width="2.2"/>
-      <ellipse cx="0" cy="0" rx="23" ry="8.2" fill="none" stroke="#fff" stroke-opacity=".18" stroke-width="3" stroke-dasharray="4 7"/>
-    </g>
-  `;
-
-  const cup = (x, y) => `
-    <g transform="translate(${x} ${y})">
-      <ellipse cx="0" cy="0" rx="13" ry="7" fill="#1a100a"/>
-      <ellipse cx="0" cy="-1" rx="10" ry="5" fill="#3a2416"/>
-    </g>
-  `;
-
-  return `
-    <svg class="table-art" viewBox="0 0 800 420" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <defs>
-        <radialGradient id="feltGrad" cx="50%" cy="36%" r="68%">
-          <stop offset="0%" stop-color="#48b87a"/>
-          <stop offset="38%" stop-color="#1f8a55"/>
-          <stop offset="100%" stop-color="#0c4a32"/>
-        </radialGradient>
-        <linearGradient id="railGrad" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="#8a5a38"/>
-          <stop offset="42%" stop-color="#4a2d1b"/>
-          <stop offset="100%" stop-color="#1c100a"/>
-        </linearGradient>
-      </defs>
-      <ellipse cx="400" cy="392" rx="310" ry="16" fill="#000" opacity=".32"/>
-      <ellipse cx="400" cy="208" rx="372" ry="172" fill="url(#railGrad)"/>
-      <ellipse cx="400" cy="204" rx="354" ry="158" fill="#62402a"/>
-      <ellipse cx="400" cy="206" rx="338" ry="146" fill="#e8d2a6"/>
-      <ellipse cx="400" cy="206" rx="330" ry="140" fill="url(#feltGrad)"/>
-      <ellipse cx="400" cy="206" rx="248" ry="96" fill="none" stroke="#fff" stroke-opacity=".16" stroke-width="1.6" stroke-dasharray="8 9"/>
-      ${cup(148, 150)}
-      ${cup(148, 262)}
-      ${cup(652, 150)}
-      ${cup(652, 262)}
-      ${chips(188, 210, "#f05848", "#b83a32")}
-      ${chips(612, 224, "#2c3540", "#161b20")}
-      ${chips(214, 252, "#38c078", "#1e7a4c")}
-      ${card(332, 198, -9, "A", "♥", "red")}
-      ${card(388, 184, -2, "K", "♠", "black")}
-      ${card(444, 184, 3, "Q", "♦", "red")}
-      ${card(500, 200, 10, "J", "♣", "black")}
-      <text x="400" y="318" text-anchor="middle" fill="#fff" fill-opacity=".12" font-size="42" font-weight="900" font-style="italic" font-family="Pretendard, sans-serif" letter-spacing="-2">KMGM</text>
-    </svg>
-  `;
-}
-
-/**
  * 첫 화면 랜딩을 만든다.
  *
  * @return {string} HTML
@@ -269,8 +196,22 @@ function renderTableArt() {
 function renderHome() {
   return `
     <section class="landing">
-      <div class="pub-glow" aria-hidden="true"></div>
-      <aside class="pub-ticket" aria-hidden="true">
+      <div class="neon-scene" aria-hidden="true">
+        <span class="spot spot-coral"></span>
+        <span class="spot spot-amber"></span>
+        <span class="spot spot-mint"></span>
+        <span class="beam beam-l"></span>
+        <span class="beam beam-c"></span>
+        <span class="beam beam-r"></span>
+        <span class="bulb b1"></span>
+        <span class="bulb b2"></span>
+        <span class="bulb b3"></span>
+        <span class="suit s-heart">♥</span>
+        <span class="suit s-spade">♠</span>
+        <span class="suit s-diamond">♦</span>
+        <span class="suit s-club">♣</span>
+      </div>
+      <aside class="pub-ticket">
         <span>TONIGHT</span>
         <strong>프리티켓</strong>
         <em>KMGM</em>
@@ -278,7 +219,6 @@ function renderHome() {
       <p class="neon-sign">KMGM</p>
       <h1 class="pub-title">오늘 한 판 어때요</h1>
       <p class="landing-caption">위 메뉴에서 보드 고르면 바로 켜져요</p>
-      <div class="pub-table">${renderTableArt()}</div>
     </section>
   `;
 }
