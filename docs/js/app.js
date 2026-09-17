@@ -1,0 +1,745 @@
+/**
+ * KMGM 홀덤펍 이벤트 보드 UI.
+ *
+ * 해시 경로로 홈·빙고·포켓 페이지를 바꾸고, 관리 모드에서만 기록을 수정한다.
+ */
+
+import * as store from "./store.js";
+
+const ui = {
+  pinOpen: false,
+  pinError: "",
+  settingsOpen: false,
+  selectedBingoId: null,
+  selectedPocketId: null,
+  editingCell: null,
+};
+
+/**
+ * HTML 특수문자를 이스케이프한다.
+ *
+ * @param {unknown} value 원문
+ * @return {string} 안전한 문자열
+ */
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    '"': "&quot;",
+    "'": "&#39;",
+  }[char]));
+}
+
+/**
+ * 현재 해시 경로를 읽는다.
+ *
+ * @return {string} `/`, `/bingo`, `/pocket`
+ */
+function route() {
+  const hash = location.hash.replace(/^#/, "") || "/";
+  return hash.startsWith("/") ? hash : `/${hash}`;
+}
+
+/** 화면을 다시 그린다. */
+function render() {
+  const root = document.getElementById("app");
+  const state = store.load();
+  const admin = store.isAdmin();
+  const path = route();
+
+  let page = "";
+  if (path === "/bingo") {
+    page = renderBingo(state, admin);
+  } else if (path === "/pocket") {
+    page = renderPocket(state, admin);
+  } else {
+    page = renderHome(state);
+  }
+
+  root.innerHTML = `
+    ${renderHeader(admin, path)}
+    <main class="page">${page}</main>
+    ${ui.pinOpen ? renderPinModal() : ""}
+    ${ui.settingsOpen && admin ? renderSettingsModal() : ""}
+  `;
+}
+
+/**
+ * 공통 헤더를 만든다.
+ *
+ * @param {boolean} admin 관리 모드
+ * @param {string} path 현재 경로
+ * @return {string} HTML
+ */
+function renderHeader(admin, path) {
+  const back = path !== "/"
+      ? `<a class="text-link" href="#/">이벤트 목록</a>`
+      : `<span class="tagline">홀덤펍 이벤트</span>`;
+  const adminBtn = admin
+      ? `
+        <button class="ghost" data-action="open-settings" type="button">설정</button>
+        <button class="ghost" data-action="logout" type="button">관리 종료</button>
+      `
+      : `<button class="gold" data-action="open-pin" type="button">관리자</button>`;
+
+  return `
+    <header class="topbar">
+      <div class="brand">
+        <a class="logo" href="#/">KMGM</a>
+        ${back}
+      </div>
+      <div class="top-actions">
+        ${admin ? `<span class="admin-badge">관리 모드</span>` : ""}
+        ${adminBtn}
+      </div>
+    </header>
+  `;
+}
+
+/**
+ * 이벤트 목록 홈을 만든다.
+ *
+ * @param {object} state 이벤트 상태
+ * @return {string} HTML
+ */
+function renderHome(state) {
+  const bingoWinners = state.bingo.participants
+      .filter((person) => store.bingoLineCount(person.marks) > 0).length;
+  const pocketWinners = state.pocket.participants
+      .filter((person) => store.pocketComplete(person.pockets)).length;
+
+  return `
+    <section class="hero">
+      <p class="eyebrow">테이블 이벤트</p>
+      <h1>오늘의 보드를 고르세요</h1>
+      <p class="lede">참여자 이름과 달성 칸은 관리자가 기록합니다. 전광판처럼 이 화면을 띄워 두면 됩니다.</p>
+    </section>
+    <section class="event-grid">
+      <a class="event-card" href="#/bingo">
+        <span class="event-kicker">EVENT 01</span>
+        <h2>3×3 빙고</h2>
+        <p>아홉 칸 미션 중 가로·세로·대각선 한 줄을 완성하면 빙고입니다.</p>
+        <dl>
+          <div><dt>참여자</dt><dd>${state.bingo.participants.length}명</dd></div>
+          <div><dt>빙고</dt><dd>${bingoWinners}명</dd></div>
+        </dl>
+      </a>
+      <a class="event-card" href="#/pocket">
+        <span class="event-kicker">EVENT 02</span>
+        <h2>10~A 포켓</h2>
+        <p>텐부터 에이스까지, 모든 포켓으로 승리하면 당첨입니다.</p>
+        <dl>
+          <div><dt>참여자</dt><dd>${state.pocket.participants.length}명</dd></div>
+          <div><dt>당첨</dt><dd>${pocketWinners}명</dd></div>
+        </dl>
+      </a>
+    </section>
+  `;
+}
+
+/**
+ * 3×3 빙고 페이지를 만든다.
+ *
+ * @param {object} state 이벤트 상태
+ * @param {boolean} admin 관리 모드
+ * @return {string} HTML
+ */
+function renderBingo(state, admin) {
+  const selected = state.bingo.participants.find((person) => person.id === ui.selectedBingoId);
+  const lineCells = selected ? store.bingoLineCells(selected.marks) : new Set();
+  const winners = state.bingo.participants.filter((person) => store.bingoLineCount(person.marks) > 0);
+
+  const cells = state.bingo.cells.map((label, index) => {
+    const names = state.bingo.participants
+        .filter((person) => person.marks[index])
+        .map((person) => person.name);
+    const selectedOn = Boolean(selected && selected.marks[index]);
+    const editing = admin && ui.editingCell === index;
+    const labelHtml = editing
+        ? `<input class="cell-edit" data-field="bingo-cell" data-index="${index}" value="${escapeHtml(label)}" maxlength="24" />`
+        : `<span class="cell-label">${escapeHtml(label)}</span>`;
+
+    return `
+      <button
+        class="bingo-cell ${selectedOn ? "marked" : ""} ${lineCells.has(index) ? "in-line" : ""} ${admin ? "" : "view-only"}"
+        data-action="bingo-cell"
+        data-index="${index}"
+        type="button"
+      >
+        ${labelHtml}
+        <span class="chips">
+          ${names.map((name) => `
+            <span class="chip ${selected && selected.name === name ? "me" : ""}">${escapeHtml(name)}</span>
+          `).join("")}
+        </span>
+      </button>
+    `;
+  }).join("");
+
+  return `
+    <section class="event-head">
+      <div>
+        <p class="eyebrow">EVENT 01</p>
+        ${admin
+            ? `<input class="title-edit" data-field="bingo-title" value="${escapeHtml(state.bingo.title)}" maxlength="32" />`
+            : `<h1>${escapeHtml(state.bingo.title)}</h1>`}
+        ${admin
+            ? `<input class="sub-edit" data-field="bingo-subtitle" value="${escapeHtml(state.bingo.subtitle)}" maxlength="80" />`
+            : `<p>${escapeHtml(state.bingo.subtitle)}</p>`}
+      </div>
+      ${winners.length ? `
+        <aside class="winner-strip">
+          <strong>빙고</strong>
+          <span>${winners.map((person) => escapeHtml(person.name)).join(" · ")}</span>
+        </aside>
+      ` : ""}
+    </section>
+    ${admin ? `
+      <p class="hint">
+        ${selected
+            ? `<b>${escapeHtml(selected.name)}</b>의 칸을 누르면 기록이 바뀝니다. 참여자 선택을 해제하면 칸 문구를 수정합니다.`
+            : "참여자를 고른 뒤 칸을 누르면 달성 표시가 됩니다. 선택하지 않은 채 칸을 누르면 문구를 고칩니다."}
+      </p>
+    ` : ""}
+    <div class="bingo-layout">
+      <div class="felt-board" aria-label="3x3 빙고판">
+        <div class="bingo-grid">${cells}</div>
+      </div>
+      ${renderPeoplePanel({
+        admin,
+        people: state.bingo.participants,
+        selectedId: ui.selectedBingoId,
+        eventKey: "bingo",
+        statusOf: (person) => {
+          const lines = store.bingoLineCount(person.marks);
+          return lines > 0 ? `빙고 ${lines}줄` : `${person.marks.filter(Boolean).length}/9`;
+        },
+      })}
+    </div>
+  `;
+}
+
+/**
+ * 10~A 포켓 페이지를 만든다.
+ *
+ * @param {object} state 이벤트 상태
+ * @param {boolean} admin 관리 모드
+ * @return {string} HTML
+ */
+function renderPocket(state, admin) {
+  const winners = state.pocket.participants.filter((person) => store.pocketComplete(person.pockets));
+  const selected = state.pocket.participants.find((person) => person.id === ui.selectedPocketId);
+
+  const columns = store.POCKETS.map((pocket) => {
+    const names = state.pocket.participants
+        .filter((person) => person.pockets[pocket.key])
+        .map((person) => person.name);
+    return `
+      <article class="pair-col">
+        <div class="pair" aria-hidden="true">
+          <span class="pcard red"><b>${pocket.label}</b><i>${pocket.red}</i></span>
+          <span class="pcard black"><b>${pocket.label}</b><i>${pocket.black}</i></span>
+        </div>
+        <h3>${escapeHtml(pocket.name)}</h3>
+        <ul class="name-list">
+          ${names.length
+              ? names.map((name) => `<li>${escapeHtml(name)}</li>`).join("")
+              : `<li class="muted">아직 없음</li>`}
+        </ul>
+      </article>
+    `;
+  }).join("");
+
+  const rows = state.pocket.participants.map((person) => {
+    const done = store.pocketComplete(person.pockets);
+    const count = store.POCKETS.filter((pocket) => person.pockets[pocket.key]).length;
+    const marks = store.POCKETS.map((pocket) => {
+      const on = person.pockets[pocket.key];
+      if (!admin) {
+        return `<td class="mark-cell">${on ? "●" : ""}</td>`;
+      }
+      return `
+        <td>
+          <button
+            class="mark ${on ? "on" : ""}"
+            data-action="pocket-mark"
+            data-id="${escapeHtml(person.id)}"
+            data-pocket="${pocket.key}"
+            type="button"
+            aria-pressed="${on}"
+          >${on ? "승" : ""}</button>
+        </td>
+      `;
+    }).join("");
+
+    return `
+      <tr class="${done ? "winner" : ""} ${selected && selected.id === person.id ? "selected" : ""}">
+        <th>${escapeHtml(person.name)}</th>
+        ${marks}
+        <td class="status">${done ? "당첨" : `${count}/5`}</td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    <section class="event-head">
+      <div>
+        <p class="eyebrow">EVENT 02</p>
+        ${admin
+            ? `<input class="title-edit" data-field="pocket-title" value="${escapeHtml(state.pocket.title)}" maxlength="32" />`
+            : `<h1>${escapeHtml(state.pocket.title)}</h1>`}
+        ${admin
+            ? `<input class="sub-edit" data-field="pocket-subtitle" value="${escapeHtml(state.pocket.subtitle)}" maxlength="80" />`
+            : `<p>${escapeHtml(state.pocket.subtitle)}</p>`}
+      </div>
+      ${winners.length ? `
+        <aside class="winner-strip">
+          <strong>당첨</strong>
+          <span>${winners.map((person) => escapeHtml(person.name)).join(" · ")}</span>
+        </aside>
+      ` : ""}
+    </section>
+    ${admin ? `<p class="hint">표의 칸을 누르면 그 포켓으로 승리한 기록이 바뀝니다. 다섯 칸을 모두 채우면 당첨입니다.</p>` : ""}
+    <div class="felt-board pocket-board" aria-label="10부터 에이스 포켓 보드">
+      <div class="pocket-cols">${columns}</div>
+    </div>
+    <div class="bingo-layout">
+      <div class="table-wrap">
+        <table class="score">
+          <thead>
+            <tr>
+              <th>이름</th>
+              ${store.POCKETS.map((pocket) => `<th>${pocket.label}</th>`).join("")}
+              <th>상태</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${rows || `<tr><td colspan="7" class="empty">아직 참여자가 없습니다.</td></tr>`}
+          </tbody>
+        </table>
+      </div>
+      ${renderPeoplePanel({
+        admin,
+        people: state.pocket.participants,
+        selectedId: ui.selectedPocketId,
+        eventKey: "pocket",
+        statusOf: (person) => store.pocketComplete(person.pockets)
+            ? "당첨"
+            : `${store.POCKETS.filter((pocket) => person.pockets[pocket.key]).length}/5`,
+      })}
+    </div>
+  `;
+}
+
+/**
+ * 참여자 목록과 등록 폼을 만든다.
+ *
+ * @param {object} options 패널 옵션
+ * @return {string} HTML
+ */
+function renderPeoplePanel(options) {
+  const {admin, people, selectedId, eventKey, statusOf} = options;
+  const items = people.map((person) => `
+    <li class="${person.id === selectedId ? "on" : ""}">
+      <button class="pick" data-action="select-${eventKey}" data-id="${escapeHtml(person.id)}" type="button">
+        <span>${escapeHtml(person.name)}</span>
+        <em>${escapeHtml(statusOf(person))}</em>
+      </button>
+      ${admin ? `
+        <button class="icon-btn" data-action="remove-${eventKey}" data-id="${escapeHtml(person.id)}" type="button" aria-label="${escapeHtml(person.name)} 삭제">×</button>
+      ` : ""}
+    </li>
+  `).join("");
+
+  return `
+    <aside class="people">
+      <div class="people-head">
+        <h2>참여자</h2>
+        <span>${people.length}명</span>
+      </div>
+      ${admin ? `
+        <form class="add-form" data-form="add-${eventKey}">
+          <input name="name" type="text" maxlength="16" placeholder="이름 입력" autocomplete="off" required />
+          <button class="gold" type="submit">등록</button>
+        </form>
+      ` : ""}
+      <ul class="people-list">
+        ${items || `<li class="empty-row">아직 없습니다.</li>`}
+      </ul>
+      ${admin && people.length ? `
+        <button class="ghost danger" data-action="reset-${eventKey}" type="button">명단 초기화</button>
+      ` : ""}
+    </aside>
+  `;
+}
+
+/**
+ * 관리자 비밀번호 모달을 만든다.
+ *
+ * @return {string} HTML
+ */
+function renderPinModal() {
+  return `
+    <div class="overlay" data-action="close-pin">
+      <form class="modal" data-form="pin">
+        <h2>관리자</h2>
+        <p>이벤트 내용과 참여자를 수정하려면 비밀번호가 필요합니다.</p>
+        <input name="pin" type="password" maxlength="32" placeholder="비밀번호" autocomplete="current-password" required />
+        ${ui.pinError ? `<p class="error">${escapeHtml(ui.pinError)}</p>` : ""}
+        <div class="modal-actions">
+          <button class="ghost" data-action="close-pin" type="button">취소</button>
+          <button class="gold" type="submit">입장</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+/**
+ * 비밀번호 변경 모달을 만든다.
+ *
+ * @return {string} HTML
+ */
+function renderSettingsModal() {
+  return `
+    <div class="overlay" data-action="close-settings">
+      <form class="modal" data-form="settings">
+        <h2>관리 설정</h2>
+        <p>이 브라우저에만 저장되는 관리 비밀번호를 바꿉니다.</p>
+        <input name="pin" type="password" maxlength="32" placeholder="새 비밀번호" autocomplete="new-password" required />
+        <div class="modal-actions">
+          <button class="ghost" data-action="close-settings" type="button">취소</button>
+          <button class="gold" type="submit">저장</button>
+        </div>
+      </form>
+    </div>
+  `;
+}
+
+/**
+ * 클릭 이벤트를 처리한다.
+ *
+ * @param {MouseEvent} event 클릭
+ */
+function onClick(event) {
+  const actionNode = event.target.closest("[data-action]");
+  if (!actionNode) {
+    return;
+  }
+  if (event.target.closest(".modal") && actionNode.classList.contains("overlay")) {
+    return;
+  }
+
+  const action = actionNode.dataset.action;
+  const id = actionNode.dataset.id;
+
+  switch (action) {
+    case "open-pin":
+      ui.pinOpen = true;
+      ui.pinError = "";
+      render();
+      document.querySelector("input[name='pin']")?.focus();
+      break;
+    case "close-pin":
+      ui.pinOpen = false;
+      ui.pinError = "";
+      render();
+      break;
+    case "open-settings":
+      ui.settingsOpen = true;
+      render();
+      document.querySelector("form[data-form='settings'] input[name='pin']")?.focus();
+      break;
+    case "close-settings":
+      ui.settingsOpen = false;
+      render();
+      break;
+    case "logout":
+      store.logout();
+      ui.settingsOpen = false;
+      ui.editingCell = null;
+      render();
+      break;
+    case "bingo-cell":
+      if (event.target.closest(".cell-edit")) {
+        return;
+      }
+      handleBingoCell(Number(actionNode.dataset.index));
+      break;
+    case "select-bingo":
+      ui.selectedBingoId = ui.selectedBingoId === id ? null : id;
+      ui.editingCell = null;
+      render();
+      break;
+    case "select-pocket":
+      ui.selectedPocketId = ui.selectedPocketId === id ? null : id;
+      render();
+      break;
+    case "remove-bingo":
+      removePerson("bingo", id);
+      break;
+    case "remove-pocket":
+      removePerson("pocket", id);
+      break;
+    case "reset-bingo":
+      resetPeople("bingo");
+      break;
+    case "reset-pocket":
+      resetPeople("pocket");
+      break;
+    case "pocket-mark":
+      togglePocket(id, actionNode.dataset.pocket);
+      break;
+    default:
+      break;
+  }
+}
+
+/**
+ * 빙고 칸 클릭: 선택 참여자 표시 또는 칸 문구 수정.
+ *
+ * @param {number} index 칸 번호 0~8
+ */
+function handleBingoCell(index) {
+  if (!store.isAdmin()) {
+    return;
+  }
+  if (ui.selectedBingoId) {
+    store.update((state) => {
+      const person = state.bingo.participants.find((item) => item.id === ui.selectedBingoId);
+      if (person) {
+        person.marks[index] = !person.marks[index];
+      }
+    });
+    ui.editingCell = null;
+    render();
+    return;
+  }
+  ui.editingCell = ui.editingCell === index ? null : index;
+  render();
+  document.querySelector(".cell-edit")?.focus();
+  document.querySelector(".cell-edit")?.select();
+}
+
+/**
+ * 참여자를 삭제한다.
+ *
+ * @param {"bingo"|"pocket"} eventKey 이벤트
+ * @param {string} id 참여자 id
+ */
+function removePerson(eventKey, id) {
+  if (!store.isAdmin()) {
+    return;
+  }
+  const state = store.load();
+  const person = state[eventKey].participants.find((item) => item.id === id);
+  if (!person || !confirm(`${person.name}을(를) 명단에서 뺄까요?`)) {
+    return;
+  }
+  store.update((next) => {
+    next[eventKey].participants = next[eventKey].participants.filter((item) => item.id !== id);
+  });
+  if (eventKey === "bingo" && ui.selectedBingoId === id) {
+    ui.selectedBingoId = null;
+  }
+  if (eventKey === "pocket" && ui.selectedPocketId === id) {
+    ui.selectedPocketId = null;
+  }
+  render();
+}
+
+/**
+ * 참여자 명단만 비운다.
+ *
+ * @param {"bingo"|"pocket"} eventKey 이벤트
+ */
+function resetPeople(eventKey) {
+  if (!store.isAdmin()) {
+    return;
+  }
+  if (!confirm("참여자 명단과 기록을 모두 지울까요? 칸 문구는 그대로 둡니다.")) {
+    return;
+  }
+  store.update((state) => {
+    state[eventKey].participants = [];
+  });
+  if (eventKey === "bingo") {
+    ui.selectedBingoId = null;
+  } else {
+    ui.selectedPocketId = null;
+  }
+  render();
+}
+
+/**
+ * 포켓 승리 칸을 토글한다.
+ *
+ * @param {string} id 참여자 id
+ * @param {string} pocketKey 포켓 키
+ */
+function togglePocket(id, pocketKey) {
+  if (!store.isAdmin()) {
+    return;
+  }
+  store.update((state) => {
+    const person = state.pocket.participants.find((item) => item.id === id);
+    if (person) {
+      person.pockets[pocketKey] = !person.pockets[pocketKey];
+    }
+  });
+  render();
+}
+
+/**
+ * 폼 제출을 처리한다.
+ *
+ * @param {SubmitEvent} event 제출
+ */
+function onSubmit(event) {
+  const form = event.target.closest("form");
+  if (!form) {
+    return;
+  }
+  event.preventDefault();
+  const formType = form.dataset.form;
+
+  if (formType === "pin") {
+    const pin = String(new FormData(form).get("pin") || "");
+    if (store.login(pin)) {
+      ui.pinOpen = false;
+      ui.pinError = "";
+    } else {
+      ui.pinError = "비밀번호가 맞지 않습니다.";
+    }
+    render();
+    return;
+  }
+
+  if (formType === "settings") {
+    const pin = String(new FormData(form).get("pin") || "").trim();
+    if (pin) {
+      store.setPin(pin);
+      ui.settingsOpen = false;
+      render();
+    }
+    return;
+  }
+
+  if (formType === "add-bingo" || formType === "add-pocket") {
+    addPerson(formType === "add-bingo" ? "bingo" : "pocket", form);
+  }
+}
+
+/**
+ * 참여자를 등록한다.
+ *
+ * @param {"bingo"|"pocket"} eventKey 이벤트
+ * @param {HTMLFormElement} form 등록 폼
+ */
+function addPerson(eventKey, form) {
+  if (!store.isAdmin()) {
+    return;
+  }
+  const name = String(new FormData(form).get("name") || "").trim();
+  if (!name) {
+    return;
+  }
+  const state = store.load();
+  const exists = state[eventKey].participants.some((person) => person.name === name);
+  if (exists) {
+    alert("같은 이름이 이미 있습니다.");
+    return;
+  }
+
+  let newPersonId = "";
+  store.update((next) => {
+    const person = eventKey === "bingo"
+        ? {id: store.newId(), name, marks: Array(9).fill(false)}
+        : {id: store.newId(), name, pockets: store.emptyPockets()};
+    newPersonId = person.id;
+    next[eventKey].participants.push(person);
+  });
+
+  if (eventKey === "bingo") {
+    ui.selectedBingoId = newPersonId;
+    ui.editingCell = null;
+  } else {
+    ui.selectedPocketId = newPersonId;
+  }
+  render();
+}
+
+/**
+ * 제목·칸 문구 입력을 저장한다.
+ *
+ * @param {Event} event 입력 또는 포커스 아웃
+ */
+function onFieldChange(event) {
+  const field = event.target.dataset.field;
+  if (!field || !store.isAdmin()) {
+    return;
+  }
+  const value = event.target.value;
+
+  if (field === "bingo-title") {
+    store.update((state) => {
+      state.bingo.title = value.trim() || "3×3 빙고";
+    });
+    return;
+  }
+  if (field === "bingo-subtitle") {
+    store.update((state) => {
+      state.bingo.subtitle = value.trim() || store.defaultState().bingo.subtitle;
+    });
+    return;
+  }
+  if (field === "pocket-title") {
+    store.update((state) => {
+      state.pocket.title = value.trim() || "10~A 포켓";
+    });
+    return;
+  }
+  if (field === "pocket-subtitle") {
+    store.update((state) => {
+      state.pocket.subtitle = value.trim() || store.defaultState().pocket.subtitle;
+    });
+    return;
+  }
+  if (field === "bingo-cell") {
+    const index = Number(event.target.dataset.index);
+    store.update((state) => {
+      state.bingo.cells[index] = value.trim() || state.bingo.cells[index];
+    });
+    if (event.type === "change" || event.type === "focusout") {
+      ui.editingCell = null;
+      render();
+    }
+  }
+}
+
+/**
+ * Escape로 모달·칸 편집을 닫는다.
+ *
+ * @param {KeyboardEvent} event 키
+ */
+function onKeydown(event) {
+  if (event.key !== "Escape") {
+    return;
+  }
+  if (ui.pinOpen || ui.settingsOpen || ui.editingCell !== null) {
+    ui.pinOpen = false;
+    ui.settingsOpen = false;
+    ui.editingCell = null;
+    ui.pinError = "";
+    render();
+  }
+}
+
+document.getElementById("app").addEventListener("click", onClick);
+document.getElementById("app").addEventListener("submit", onSubmit);
+document.getElementById("app").addEventListener("change", onFieldChange);
+document.getElementById("app").addEventListener("focusout", onFieldChange);
+window.addEventListener("hashchange", render);
+window.addEventListener("keydown", onKeydown);
+render();
