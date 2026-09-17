@@ -218,7 +218,6 @@ function renderHome() {
       </aside>
       <p class="neon-sign">KMGM</p>
       <h1 class="pub-title">오늘 한 판 어때요</h1>
-      <p class="landing-caption">위 메뉴에서 보드 고르면 바로 켜져요</p>
     </section>
   `;
 }
