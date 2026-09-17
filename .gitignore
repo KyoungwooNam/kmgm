@@ -1,0 +1,13 @@
+# MkDocs 빌드 결과
+site/
+
+# Python
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.cache/
+
+# 로컬 환경
+.env
+.DS_Store
