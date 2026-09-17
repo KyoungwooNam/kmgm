@@ -314,118 +314,15 @@ body.is-home .page {
 }
 
 .pub-table {
-  width: min(640px, 100%);
-  aspect-ratio: 2.05 / 1;
-  margin: 0 auto;
-  padding: 16px;
-  border-radius: 50%;
-  transform: perspective(820px) rotateX(32deg);
-  transform-origin: center bottom;
-  background: linear-gradient(180deg, #5a3a22, #2a1c12 42%, #1a100a);
-  box-shadow:
-    0 24px 40px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 220, 170, 0.18);
+  width: min(760px, 100%);
+  margin: 4px auto 0;
 }
 
-.table-inner {
-  position: relative;
+.table-art {
+  display: block;
   width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  overflow: hidden;
-  background:
-    radial-gradient(circle at 50% 30%, rgba(255, 255, 255, 0.16), transparent 30%),
-    radial-gradient(circle at 50% 50%, #2f8a62, #14563c 58%, #0d3a28);
-  box-shadow:
-    inset 0 0 0 3px rgba(232, 210, 160, 0.5),
-    inset 0 0 40px rgba(0, 0, 0, 0.25);
-}
-
-.board-cards {
-  position: absolute;
-  left: 50%;
-  top: 44%;
-  display: flex;
-  gap: 6px;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-}
-
-.play-card {
-  width: 62px;
-  height: 88px;
-  padding: 6px 7px;
-  border-radius: 8px;
-  background: linear-gradient(180deg, #fff, #f4efe4);
-  box-shadow:
-    0 14px 24px rgba(0, 0, 0, 0.32),
-    0 0 0 1px rgba(42, 28, 18, 0.08);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  font-weight: 800;
-  line-height: 1;
-}
-
-.play-card i {
-  font-style: normal;
-  font-size: 20px;
-  text-align: center;
-}
-
-.play-card .flip {
-  align-self: flex-end;
-  transform: rotate(180deg);
-}
-
-.play-card.red {
-  color: var(--coral-deep);
-}
-
-.play-card.black {
-  color: #171717;
-}
-
-.board-cards .play-card:nth-child(1) { transform: rotate(-14deg) translateY(10px); }
-.board-cards .play-card:nth-child(2) { transform: rotate(-2deg) translateY(-6px); }
-.board-cards .play-card:nth-child(3) { transform: rotate(12deg) translateY(8px); }
-
-.chip-stack {
-  position: absolute;
-  width: 46px;
-  height: 46px;
-  z-index: 2;
-}
-
-.chips-l {
-  left: 16%;
-  top: 42%;
-}
-
-.chips-r {
-  right: 16%;
-  top: 50%;
-}
-
-.poker-chip {
-  position: absolute;
-  inset: 0;
-  border-radius: 50%;
-  box-shadow:
-    0 4px 0 rgba(0, 0, 0, 0.35),
-    inset 0 0 0 3px rgba(255, 255, 255, 0.4);
-}
-
-.poker-chip:nth-child(1) { transform: translateY(8px); }
-.poker-chip:nth-child(2) { transform: translateY(4px); }
-.poker-chip:nth-child(3) { transform: translateY(0); }
-
-.chip-navy {
-  background: #2c3540;
-}
-
-.chip-coral {
-  background: #f05848;
+  height: auto;
+  filter: drop-shadow(0 22px 28px rgba(0, 0, 0, 0.38));
 }
 
 .eyebrow {
@@ -1040,27 +937,6 @@ body.is-capturing .board-capture {
     right: 0;
     width: 78px;
     transform: rotate(10deg) scale(0.92);
-  }
-
-  .pub-table {
-    padding: 10px;
-    aspect-ratio: 1.75 / 1;
-    transform: perspective(700px) rotateX(26deg);
-  }
-
-  .play-card {
-    width: 44px;
-    height: 62px;
-    padding: 4px 5px;
-    font-size: 11px;
-  }
-
-  .play-card i {
-    font-size: 14px;
-  }
-
-  .board-cards {
-    gap: 4px;
   }
 
   .event-card {
