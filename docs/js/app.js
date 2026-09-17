@@ -1,7 +1,7 @@
 /**
  * KMGM 홀덤펍 이벤트 보드 UI.
  *
- * 해시 경로로 홈·빙고·포켓 페이지를 바꾸고, 관리 모드에서만 기록을 수정한다.
+ * 해시 경로로 홈·빙고·포켓·출석 페이지를 바꾸고, 관리 모드에서만 기록을 수정한다.
  */
 
 import * as store from "./store.js";
@@ -12,6 +12,7 @@ const ui = {
   settingsOpen: false,
   selectedBingoId: null,
   selectedPocketId: null,
+  selectedAttendId: null,
   editingCell: null,
   downloading: null,
 };
@@ -35,7 +36,7 @@ function escapeHtml(value) {
 /**
  * 현재 해시 경로를 읽는다.
  *
- * @return {string} `/`, `/bingo`, `/pocket`
+ * @return {string} `/`, `/bingo`, `/pocket`, `/attend`
  */
 function route() {
   const hash = location.hash.replace(/^#/, "") || "/";
@@ -118,6 +119,8 @@ function render() {
     page = renderBingo(state, admin);
   } else if (path === "/pocket") {
     page = renderPocket(state, admin);
+  } else if (path === "/attend") {
+    page = renderAttend(state, admin);
   } else {
     page = renderHome(state);
   }
@@ -173,6 +176,8 @@ function renderHome(state) {
       .filter((person) => store.bingoLineCount(person.marks) > 0).length;
   const pocketWinners = state.pocket.participants
       .filter((person) => store.pocketComplete(person.pockets)).length;
+  const attendWinners = state.attend.participants
+      .filter((person) => store.attendComplete(person.days)).length;
 
   return `
     <section class="hero">
@@ -200,6 +205,16 @@ function renderHome(state) {
           <div><dt>당첨</dt><dd>${pocketWinners}명</dd></div>
         </dl>
         <p class="card-updated">${escapeHtml(formatUpdated(state.pocket.updatedAt))}</p>
+      </a>
+      <a class="event-card" href="#/attend">
+        <span class="event-kicker">EVENT 03</span>
+        <h2>데일리 출석</h2>
+        <p>월요일부터 일요일까지 매일 출석을 기록합니다. 일주일을 채우면 만근입니다.</p>
+        <dl>
+          <div><dt>참여자</dt><dd>${state.attend.participants.length}명</dd></div>
+          <div><dt>만근</dt><dd>${attendWinners}명</dd></div>
+        </dl>
+        <p class="card-updated">${escapeHtml(formatUpdated(state.attend.updatedAt))}</p>
       </a>
     </section>
   `;
@@ -420,6 +435,127 @@ function renderPocket(state, admin) {
 }
 
 /**
+ * 월~일 데일리 출석 페이지를 만든다.
+ *
+ * @param {object} state 이벤트 상태
+ * @param {boolean} admin 관리 모드
+ * @return {string} HTML
+ */
+function renderAttend(state, admin) {
+  const people = store.sortAttendPeople(state.attend.participants);
+  const winners = people.filter((person) => store.attendComplete(person.days));
+  const selected = people.find((person) => person.id === ui.selectedAttendId);
+  const todayKey = store.todayWeekdayKey();
+
+  const columns = store.WEEKDAYS.map((day) => {
+    const names = people
+        .filter((person) => person.days[day.key])
+        .map((person) => person.name);
+    const weekend = day.key === "sat" || day.key === "sun";
+    return `
+      <article class="day-col ${day.key === todayKey ? "today" : ""} ${weekend ? "weekend" : ""}">
+        <div class="day-badge" aria-hidden="true">${escapeHtml(day.label)}</div>
+        <h3>${escapeHtml(day.name)}</h3>
+        <ul class="name-list">
+          ${names.length
+              ? names.map((name) => `<li>${escapeHtml(name)}</li>`).join("")
+              : `<li class="muted">아직 없음</li>`}
+        </ul>
+      </article>
+    `;
+  }).join("");
+
+  const rows = people.map((person) => {
+    const done = store.attendComplete(person.days);
+    const count = store.attendCount(person.days);
+    const marks = store.WEEKDAYS.map((day) => {
+      const on = person.days[day.key];
+      if (!admin) {
+        return `<td class="mark-cell">${on ? "●" : ""}</td>`;
+      }
+      return `
+        <td>
+          <button
+            class="mark ${on ? "on" : ""}"
+            data-action="attend-mark"
+            data-id="${escapeHtml(person.id)}"
+            data-day="${day.key}"
+            type="button"
+            aria-pressed="${on}"
+          >${on ? "출" : ""}</button>
+        </td>
+      `;
+    }).join("");
+
+    return `
+      <tr class="${done ? "winner" : ""} ${selected && selected.id === person.id ? "selected" : ""}">
+        <th>${escapeHtml(person.name)}</th>
+        ${marks}
+        <td class="status">${done ? "만근" : `${count}/7`}</td>
+      </tr>
+    `;
+  }).join("");
+
+  return `
+    ${renderBoardToolbar({
+      action: "download-attend",
+      busy: ui.downloading === "attend",
+    })}
+    ${admin ? `<p class="hint no-capture">표의 칸을 누르면 그날 출석이 바뀝니다. 월~일을 모두 채우면 만근입니다.</p>` : ""}
+    <div class="board-capture" data-capture="attend">
+      <section class="event-head">
+        <div>
+          <p class="eyebrow">EVENT 03</p>
+          ${admin
+              ? `<input class="title-edit" data-field="attend-title" value="${escapeHtml(state.attend.title)}" maxlength="32" />`
+              : `<h1>${escapeHtml(state.attend.title)}</h1>`}
+          ${admin
+              ? `<input class="sub-edit" data-field="attend-subtitle" value="${escapeHtml(state.attend.subtitle)}" maxlength="80" />`
+              : `<p>${escapeHtml(state.attend.subtitle)}</p>`}
+        </div>
+        ${winners.length ? `
+          <aside class="winner-strip">
+            <strong>만근</strong>
+            <span>${winners.map((person) => escapeHtml(person.name)).join(" · ")}</span>
+          </aside>
+        ` : ""}
+      </section>
+      <div class="felt-frame pocket-frame">
+        <div class="felt-board attend-board" aria-label="월부터 일요일 출석 보드">
+          <div class="attend-cols">${columns}</div>
+        </div>
+        ${renderBoardStamp(state.attend.updatedAt)}
+      </div>
+      <div class="bingo-layout">
+        <div class="table-wrap">
+          <table class="score">
+            <thead>
+              <tr>
+                <th>이름</th>
+                ${store.WEEKDAYS.map((day) => `<th>${day.label}</th>`).join("")}
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || `<tr><td colspan="9" class="empty">아직 참여자가 없습니다.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+        ${renderPeoplePanel({
+          admin,
+          people,
+          selectedId: ui.selectedAttendId,
+          eventKey: "attend",
+          statusOf: (person) => store.attendComplete(person.days)
+              ? "만근"
+              : `${store.attendCount(person.days)}/7`,
+        })}
+      </div>
+    </div>
+  `;
+}
+
+/**
  * 참여자 목록과 등록 폼을 만든다.
  *
  * @param {object} options 패널 옵션
@@ -563,11 +699,18 @@ function onClick(event) {
       ui.selectedPocketId = ui.selectedPocketId === id ? null : id;
       render();
       break;
+    case "select-attend":
+      ui.selectedAttendId = ui.selectedAttendId === id ? null : id;
+      render();
+      break;
     case "remove-bingo":
       removePerson("bingo", id);
       break;
     case "remove-pocket":
       removePerson("pocket", id);
+      break;
+    case "remove-attend":
+      removePerson("attend", id);
       break;
     case "reset-bingo":
       resetPeople("bingo");
@@ -575,14 +718,23 @@ function onClick(event) {
     case "reset-pocket":
       resetPeople("pocket");
       break;
+    case "reset-attend":
+      resetPeople("attend");
+      break;
     case "pocket-mark":
       togglePocket(id, actionNode.dataset.pocket);
+      break;
+    case "attend-mark":
+      toggleAttend(id, actionNode.dataset.day);
       break;
     case "download-bingo":
       downloadBoard("bingo", "3x3빙고");
       break;
     case "download-pocket":
       downloadBoard("pocket", "10-A포켓");
+      break;
+    case "download-attend":
+      downloadBoard("attend", "데일리출석");
       break;
     default:
       break;
@@ -618,7 +770,7 @@ function handleBingoCell(index) {
 /**
  * 참여자를 삭제한다.
  *
- * @param {"bingo"|"pocket"} eventKey 이벤트
+ * @param {"bingo"|"pocket"|"attend"} eventKey 이벤트
  * @param {string} id 참여자 id
  */
 function removePerson(eventKey, id) {
@@ -639,13 +791,16 @@ function removePerson(eventKey, id) {
   if (eventKey === "pocket" && ui.selectedPocketId === id) {
     ui.selectedPocketId = null;
   }
+  if (eventKey === "attend" && ui.selectedAttendId === id) {
+    ui.selectedAttendId = null;
+  }
   render();
 }
 
 /**
  * 참여자 명단만 비운다.
  *
- * @param {"bingo"|"pocket"} eventKey 이벤트
+ * @param {"bingo"|"pocket"|"attend"} eventKey 이벤트
  */
 function resetPeople(eventKey) {
   if (!store.isAdmin()) {
@@ -659,8 +814,12 @@ function resetPeople(eventKey) {
   }, eventKey);
   if (eventKey === "bingo") {
     ui.selectedBingoId = null;
-  } else {
+  }
+  if (eventKey === "pocket") {
     ui.selectedPocketId = null;
+  }
+  if (eventKey === "attend") {
+    ui.selectedAttendId = null;
   }
   render();
 }
@@ -681,6 +840,25 @@ function togglePocket(id, pocketKey) {
       person.pockets[pocketKey] = !person.pockets[pocketKey];
     }
   }, "pocket");
+  render();
+}
+
+/**
+ * 출석 칸을 토글한다.
+ *
+ * @param {string} id 참여자 id
+ * @param {string} dayKey 요일 키
+ */
+function toggleAttend(id, dayKey) {
+  if (!store.isAdmin()) {
+    return;
+  }
+  store.update((state) => {
+    const person = state.attend.participants.find((item) => item.id === id);
+    if (person) {
+      person.days[dayKey] = !person.days[dayKey];
+    }
+  }, "attend");
   render();
 }
 
@@ -719,15 +897,15 @@ function onSubmit(event) {
     return;
   }
 
-  if (formType === "add-bingo" || formType === "add-pocket") {
-    addPerson(formType === "add-bingo" ? "bingo" : "pocket", form);
+  if (formType === "add-bingo" || formType === "add-pocket" || formType === "add-attend") {
+    addPerson(formType.replace("add-", ""), form);
   }
 }
 
 /**
  * 참여자를 등록한다.
  *
- * @param {"bingo"|"pocket"} eventKey 이벤트
+ * @param {"bingo"|"pocket"|"attend"} eventKey 이벤트
  * @param {HTMLFormElement} form 등록 폼
  */
 function addPerson(eventKey, form) {
@@ -747,9 +925,7 @@ function addPerson(eventKey, form) {
 
   let newPersonId = "";
   store.update((next) => {
-    const person = eventKey === "bingo"
-        ? {id: store.newId(), name, marks: Array(9).fill(false)}
-        : {id: store.newId(), name, pockets: store.emptyPockets()};
+    const person = makePerson(eventKey, name);
     newPersonId = person.id;
     next[eventKey].participants.push(person);
   }, eventKey);
@@ -757,10 +933,30 @@ function addPerson(eventKey, form) {
   if (eventKey === "bingo") {
     ui.selectedBingoId = newPersonId;
     ui.editingCell = null;
-  } else {
+  } else if (eventKey === "pocket") {
     ui.selectedPocketId = newPersonId;
+  } else {
+    ui.selectedAttendId = newPersonId;
   }
   render();
+}
+
+/**
+ * 이벤트별 새 참여자 객체를 만든다.
+ *
+ * @param {"bingo"|"pocket"|"attend"} eventKey 이벤트
+ * @param {string} name 이름
+ * @return {object} 참여자
+ */
+function makePerson(eventKey, name) {
+  const id = store.newId();
+  if (eventKey === "bingo") {
+    return {id, name, marks: Array(9).fill(false)};
+  }
+  if (eventKey === "pocket") {
+    return {id, name, pockets: store.emptyPockets()};
+  }
+  return {id, name, days: store.emptyDays()};
 }
 
 /**
@@ -797,6 +993,18 @@ function onFieldChange(event) {
     store.update((state) => {
       state.pocket.subtitle = value.trim() || store.defaultState().pocket.subtitle;
     }, "pocket");
+    return;
+  }
+  if (field === "attend-title") {
+    store.update((state) => {
+      state.attend.title = value.trim() || "데일리 출석";
+    }, "attend");
+    return;
+  }
+  if (field === "attend-subtitle") {
+    store.update((state) => {
+      state.attend.subtitle = value.trim() || store.defaultState().attend.subtitle;
+    }, "attend");
     return;
   }
   if (field === "bingo-cell") {
@@ -838,7 +1046,7 @@ function loadHtml2Canvas() {
 /**
  * 이벤트 보드를 PNG로 저장한다.
  *
- * @param {"bingo"|"pocket"} eventKey 이벤트
+ * @param {"bingo"|"pocket"|"attend"} eventKey 이벤트
  * @param {string} label 파일 이름에 쓸 제목
  */
 async function downloadBoard(eventKey, label) {

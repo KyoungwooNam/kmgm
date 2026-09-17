@@ -28,10 +28,20 @@ export const POCKETS = [
   {key: "A", label: "A", name: "포켓 에이스", red: "♥", black: "♠"},
 ];
 
+export const WEEKDAYS = [
+  {key: "mon", label: "월", name: "월요일", jsDay: 1},
+  {key: "tue", label: "화", name: "화요일", jsDay: 2},
+  {key: "wed", label: "수", name: "수요일", jsDay: 3},
+  {key: "thu", label: "목", name: "목요일", jsDay: 4},
+  {key: "fri", label: "금", name: "금요일", jsDay: 5},
+  {key: "sat", label: "토", name: "토요일", jsDay: 6},
+  {key: "sun", label: "일", name: "일요일", jsDay: 0},
+];
+
 /**
  * 빈 이벤트 상태를 만든다.
  *
- * @return {object} 기본 빙고·포켓 데이터
+ * @return {object} 기본 빙고·포켓·출석 데이터
  */
 export function defaultState() {
   return {
@@ -58,6 +68,12 @@ export function defaultState() {
       updatedAt: null,
       participants: [],
     },
+    attend: {
+      title: "데일리 출석",
+      subtitle: "월요일부터 일요일까지 매일 출석하면 만근입니다.",
+      updatedAt: null,
+      participants: [],
+    },
   };
 }
 
@@ -68,6 +84,15 @@ export function defaultState() {
  */
 export function emptyPockets() {
   return Object.fromEntries(POCKETS.map((pocket) => [pocket.key, false]));
+}
+
+/**
+ * 월~일 출석 칸을 모두 거짓으로 만든다.
+ *
+ * @return {Object<string, boolean>} 요일 키별 출석
+ */
+export function emptyDays() {
+  return Object.fromEntries(WEEKDAYS.map((day) => [day.key, false]));
 }
 
 /**
@@ -113,7 +138,7 @@ export function save(state) {
  * 상태를 바꿔 저장한다.
  *
  * @param {function(object): void} mutator 상태 변경 함수
- * @param {"bingo"|"pocket"} [eventKey] 갱신 시각을 적을 이벤트
+ * @param {"bingo"|"pocket"|"attend"} [eventKey] 갱신 시각을 적을 이벤트
  * @return {object} 변경된 상태
  */
 export function update(mutator, eventKey) {
@@ -164,6 +189,22 @@ export function sortPocketPeople(people) {
 }
 
 /**
+ * 출석 참여자를 출석 일수가 많은 순으로 정렬한다.
+ *
+ * @param {object[]} people 참여자
+ * @return {object[]} 정렬된 복사본
+ */
+export function sortAttendPeople(people) {
+  return [...people].sort((left, right) => {
+    const dayDiff = attendCount(right.days) - attendCount(left.days);
+    if (dayDiff) {
+      return dayDiff;
+    }
+    return left.name.localeCompare(right.name, "ko");
+  });
+}
+
+/**
  * 포켓 달성 칸 수를 센다.
  *
  * @param {Object<string, boolean>} wins 포켓 표시
@@ -207,6 +248,37 @@ export function bingoLineCells(marks) {
  */
 export function pocketComplete(wins) {
   return POCKETS.every((pocket) => Boolean(wins && wins[pocket.key]));
+}
+
+/**
+ * 출석 일수를 센다.
+ *
+ * @param {Object<string, boolean>} days 요일 표시
+ * @return {number} 출석한 날 수
+ */
+export function attendCount(days) {
+  return WEEKDAYS.filter((day) => Boolean(days && days[day.key])).length;
+}
+
+/**
+ * 월~일을 모두 출석했는지 확인한다.
+ *
+ * @param {Object<string, boolean>} days 요일 표시
+ * @return {boolean} 만근 여부
+ */
+export function attendComplete(days) {
+  return WEEKDAYS.every((day) => Boolean(days && days[day.key]));
+}
+
+/**
+ * 오늘에 해당하는 요일 키를 돌려준다.
+ *
+ * @param {Date} [date] 기준 날짜
+ * @return {string} mon~sun
+ */
+export function todayWeekdayKey(date = new Date()) {
+  const match = WEEKDAYS.find((day) => day.jsDay === date.getDay());
+  return match ? match.key : "mon";
 }
 
 /**
@@ -265,6 +337,7 @@ function migrate(parsed) {
   const base = defaultState();
   const bingo = parsed && parsed.bingo ? parsed.bingo : {};
   const pocket = parsed && parsed.pocket ? parsed.pocket : {};
+  const attend = parsed && parsed.attend ? parsed.attend : {};
 
   base.bingo.title = bingo.title || base.bingo.title;
   base.bingo.subtitle = bingo.subtitle || base.bingo.subtitle;
@@ -278,6 +351,11 @@ function migrate(parsed) {
   base.pocket.subtitle = pocket.subtitle || base.pocket.subtitle;
   base.pocket.updatedAt = pocket.updatedAt || null;
   base.pocket.participants = normalizePocketPeople(pocket.participants);
+
+  base.attend.title = attend.title || base.attend.title;
+  base.attend.subtitle = attend.subtitle || base.attend.subtitle;
+  base.attend.updatedAt = attend.updatedAt || null;
+  base.attend.participants = normalizeAttendPeople(attend.participants);
   return base;
 }
 
@@ -329,6 +407,32 @@ function normalizePocketPeople(people) {
           id: person.id || newId(),
           name: String(person.name || "").trim(),
           pockets: wins,
+        };
+      })
+      .filter((person) => person.name);
+}
+
+/**
+ * 출석 참여자 배열을 정규화한다.
+ *
+ * @param {unknown} people 저장된 참여자
+ * @return {object[]} 참여자 목록
+ */
+function normalizeAttendPeople(people) {
+  if (!Array.isArray(people)) {
+    return [];
+  }
+  return people
+      .map((person) => {
+        const days = emptyDays();
+        const saved = person.days || person.attend || {};
+        for (const day of WEEKDAYS) {
+          days[day.key] = Boolean(saved[day.key]);
+        }
+        return {
+          id: person.id || newId(),
+          name: String(person.name || "").trim(),
+          days,
         };
       })
       .filter((person) => person.name);

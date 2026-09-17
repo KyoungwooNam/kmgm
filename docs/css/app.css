@@ -201,7 +201,7 @@ a {
 
 .event-grid {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 14px;
 }
 
@@ -550,6 +550,49 @@ body.is-capturing .board-capture {
   padding-bottom: 28px;
 }
 
+.attend-board {
+  padding: 16px 14px 32px;
+}
+
+.attend-cols {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.day-col {
+  text-align: center;
+  min-width: 0;
+}
+
+.day-badge {
+  width: 48px;
+  height: 48px;
+  margin: 0 auto;
+  border-radius: 50%;
+  background: var(--card);
+  color: #1b1b1b;
+  display: grid;
+  place-items: center;
+  font-weight: 800;
+  font-size: 18px;
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.28);
+}
+
+.day-col.weekend .day-badge {
+  color: var(--coral-deep);
+}
+
+.day-col.today .day-badge {
+  background: var(--coral);
+  color: #fff;
+}
+
+.day-col h3 {
+  margin: 8px 0 6px;
+  font-size: 13px;
+}
+
 .pocket-cols {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
@@ -765,6 +808,20 @@ body.is-capturing .board-capture {
 
   .pair-col h3 {
     font-size: 11px;
+  }
+
+  .day-badge {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+  }
+
+  .day-col h3 {
+    display: none;
+  }
+
+  .attend-board {
+    padding: 10px 8px 26px;
   }
 
   .pcard {
