@@ -81,21 +81,30 @@ function formatFileStamp(date) {
 }
 
 /**
- * 이벤트 페이지 상단의 날짜와 이미지 저장 버튼을 만든다.
+ * 이미지 저장 버튼만 만든다.
  *
- * @param {object} options 표시 옵션
+ * @param {object} options 버튼 옵션
  * @return {string} HTML
  */
 function renderBoardToolbar(options) {
-  const {updatedAt, action, busy} = options;
+  const {action, busy} = options;
   return `
     <div class="board-toolbar no-capture">
-      <time class="updated-at">${escapeHtml(formatUpdated(updatedAt))}</time>
-      <button class="ghost" data-action="${escapeHtml(action)}" type="button" ${busy ? "disabled" : ""}>
+      <button class="ghost save-btn" data-action="${escapeHtml(action)}" type="button" ${busy ? "disabled" : ""}>
         ${busy ? "저장 중..." : "이미지 저장"}
       </button>
     </div>
   `;
+}
+
+/**
+ * 보드 우하단 업데이트 시각을 만든다.
+ *
+ * @param {string|null} iso ISO 시각
+ * @return {string} HTML
+ */
+function renderBoardStamp(iso) {
+  return `<p class="board-stamp">${escapeHtml(formatUpdated(iso))}</p>`;
 }
 function render() {
   const root = document.getElementById("app");
@@ -237,7 +246,6 @@ function renderBingo(state, admin) {
 
   return `
     ${renderBoardToolbar({
-      updatedAt: state.bingo.updatedAt,
       action: "download-bingo",
       busy: ui.downloading === "bingo",
     })}
@@ -258,7 +266,6 @@ function renderBingo(state, admin) {
           ${admin
               ? `<input class="sub-edit" data-field="bingo-subtitle" value="${escapeHtml(state.bingo.subtitle)}" maxlength="80" />`
               : `<p>${escapeHtml(state.bingo.subtitle)}</p>`}
-          <p class="capture-updated">${escapeHtml(formatUpdated(state.bingo.updatedAt))}</p>
         </div>
         ${winners.length ? `
           <aside class="winner-strip">
@@ -270,6 +277,7 @@ function renderBingo(state, admin) {
       <div class="bingo-layout">
         <div class="felt-board" aria-label="3x3 빙고판">
           <div class="bingo-grid">${cells}</div>
+          ${renderBoardStamp(state.bingo.updatedAt)}
         </div>
         ${renderPeoplePanel({
           admin,
@@ -351,7 +359,6 @@ function renderPocket(state, admin) {
 
   return `
     ${renderBoardToolbar({
-      updatedAt: state.pocket.updatedAt,
       action: "download-pocket",
       busy: ui.downloading === "pocket",
     })}
@@ -366,7 +373,6 @@ function renderPocket(state, admin) {
           ${admin
               ? `<input class="sub-edit" data-field="pocket-subtitle" value="${escapeHtml(state.pocket.subtitle)}" maxlength="80" />`
               : `<p>${escapeHtml(state.pocket.subtitle)}</p>`}
-          <p class="capture-updated">${escapeHtml(formatUpdated(state.pocket.updatedAt))}</p>
         </div>
         ${winners.length ? `
           <aside class="winner-strip">
@@ -377,6 +383,7 @@ function renderPocket(state, admin) {
       </section>
       <div class="felt-board pocket-board" aria-label="10부터 에이스 포켓 보드">
         <div class="pocket-cols">${columns}</div>
+        ${renderBoardStamp(state.pocket.updatedAt)}
       </div>
       <div class="bingo-layout">
         <div class="table-wrap">
@@ -800,21 +807,49 @@ function onFieldChange(event) {
 }
 
 /**
+ * html2canvas를 같은 주소에서 불러온다.
+ *
+ * @return {Promise<Function>} html2canvas
+ */
+function loadHtml2Canvas() {
+  if (typeof window.html2canvas === "function") {
+    return Promise.resolve(window.html2canvas);
+  }
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = new URL("./html2canvas.min.js", import.meta.url).href;
+    script.onload = () => {
+      if (typeof window.html2canvas === "function") {
+        resolve(window.html2canvas);
+      } else {
+        reject(new Error("html2canvas 없음"));
+      }
+    };
+    script.onerror = () => reject(new Error("html2canvas 로드 실패"));
+    document.head.appendChild(script);
+  });
+}
+
+/**
  * 이벤트 보드를 PNG로 저장한다.
  *
  * @param {"bingo"|"pocket"} eventKey 이벤트
  * @param {string} label 파일 이름에 쓸 제목
  */
 async function downloadBoard(eventKey, label) {
-  const node = document.querySelector(`[data-capture="${eventKey}"]`);
-  if (!node) {
-    return;
-  }
-  if (typeof window.html2canvas !== "function") {
-    alert("이미지 저장 기능을 불러오지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.");
-    return;
-  }
   if (ui.downloading) {
+    return;
+  }
+  if (!document.querySelector(`[data-capture="${eventKey}"]`)) {
+    return;
+  }
+
+  let html2canvas;
+  try {
+    html2canvas = await loadHtml2Canvas();
+  } catch (error) {
+    console.error(error);
+    alert("이미지 저장 기능을 불러오지 못했습니다. 페이지를 새로고침한 뒤 다시 시도해 주세요.");
     return;
   }
 
@@ -823,7 +858,10 @@ async function downloadBoard(eventKey, label) {
   document.body.classList.add("is-capturing");
   const captureNode = document.querySelector(`[data-capture="${eventKey}"]`);
   try {
-    const canvas = await window.html2canvas(captureNode, {
+    if (document.fonts && document.fonts.ready) {
+      await document.fonts.ready;
+    }
+    const canvas = await html2canvas(captureNode, {
       backgroundColor: "#1c2228",
       scale: Math.min(2, window.devicePixelRatio || 2),
       useCORS: true,
