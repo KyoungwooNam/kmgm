@@ -194,12 +194,10 @@ function revealActiveNav() {
  * @return {string} HTML
  */
 function renderHome() {
-  const board = [
+  const flop = [
     {rank: "A", suit: "♥", color: "red"},
     {rank: "K", suit: "♠", color: "black"},
-    {rank: "Q", suit: "♥", color: "red"},
-    {rank: "J", suit: "♦", color: "red"},
-    {rank: "10", suit: "♣", color: "black"},
+    {rank: "Q", suit: "♦", color: "red"},
   ].map((card) => `
     <span class="play-card ${card.color}">
       <b>${card.rank}</b>
@@ -210,25 +208,30 @@ function renderHome() {
 
   return `
     <section class="landing">
-      <div class="poker-table" aria-hidden="true">
+      <div class="pub-glow" aria-hidden="true"></div>
+      <aside class="pub-ticket" aria-hidden="true">
+        <span>TONIGHT</span>
+        <strong>프리티켓</strong>
+        <em>KMGM</em>
+      </aside>
+      <p class="neon-sign">KMGM</p>
+      <h1 class="pub-title">오늘 한 판 어때요</h1>
+      <p class="landing-caption">위 메뉴에서 보드 고르면 바로 켜져요</p>
+      <div class="pub-table" aria-hidden="true">
         <div class="table-inner">
-          <p class="felt-mark">KMGM</p>
           <div class="chip-stack chips-l">
-            <span class="chip chip-navy"></span>
-            <span class="chip chip-navy"></span>
-            <span class="chip chip-navy"></span>
+            <span class="poker-chip chip-coral"></span>
+            <span class="poker-chip chip-coral"></span>
+            <span class="poker-chip chip-coral"></span>
           </div>
-          <div class="board-cards">${board}</div>
+          <div class="board-cards">${flop}</div>
           <div class="chip-stack chips-r">
-            <span class="chip chip-coral"></span>
-            <span class="chip chip-coral"></span>
-            <span class="chip chip-coral"></span>
+            <span class="poker-chip chip-navy"></span>
+            <span class="poker-chip chip-navy"></span>
+            <span class="poker-chip chip-navy"></span>
           </div>
-          <span class="dealer-btn">D</span>
         </div>
       </div>
-      <p class="landing-kicker">HOLD'EM &amp; EVENT PUB</p>
-      <p class="landing-caption">위 메뉴에서 오늘의 보드를 고르세요</p>
     </section>
   `;
 }
