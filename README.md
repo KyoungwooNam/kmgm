@@ -5,7 +5,7 @@
 - 사이트: https://kyoungwoonam.github.io/kmgm/
 - 저장소: https://github.com/KyoungwooNam/kmgm
 
-지금은 세 가지 이벤트가 있습니다.
+지금은 세 가지 이벤트가 있습니다. 위쪽 메뉴에서 바로 오갈 수 있고, 이벤트가 늘어나면 메뉴가 좌우로 스크롤됩니다.
 
 | 이벤트 | 규칙 |
 | --- | --- |

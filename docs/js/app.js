@@ -6,6 +6,12 @@
 
 import * as store from "./store.js";
 
+const EVENT_NAV = [
+  {path: "/bingo", label: "3×3 빙고"},
+  {path: "/pocket", label: "10~A 포켓"},
+  {path: "/attend", label: "데일리 출석"},
+];
+
 const ui = {
   pinOpen: false,
   pinError: "",
@@ -122,7 +128,7 @@ function render() {
   } else if (path === "/attend") {
     page = renderAttend(state, admin);
   } else {
-    page = renderHome(state);
+    page = renderHome();
   }
 
   root.innerHTML = `
@@ -131,6 +137,8 @@ function render() {
     ${ui.pinOpen ? renderPinModal() : ""}
     ${ui.settingsOpen && admin ? renderSettingsModal() : ""}
   `;
+  document.body.classList.toggle("is-home", path === "/");
+  revealActiveNav();
 }
 
 /**
@@ -141,81 +149,62 @@ function render() {
  * @return {string} HTML
  */
 function renderHeader(admin, path) {
-  const back = path !== "/"
-      ? `<a class="text-link" href="#/">이벤트 목록</a>`
-      : `<span class="tagline">홀덤펍 이벤트</span>`;
   const adminBtn = admin
       ? `
         <button class="ghost" data-action="open-settings" type="button">설정</button>
         <button class="ghost" data-action="logout" type="button">관리 종료</button>
       `
       : `<button class="gold" data-action="open-pin" type="button">관리자</button>`;
+  const nav = EVENT_NAV.map((item) => `
+    <a class="nav-chip ${path === item.path ? "is-on" : ""}" href="#${item.path}">${escapeHtml(item.label)}</a>
+  `).join("");
 
   return `
-    <header class="topbar">
-      <div class="brand">
+    <header class="site-head">
+      <div class="topbar">
         <a class="logo" href="#/">KMGM</a>
-        ${back}
+        <div class="top-actions">
+          ${admin ? `<span class="admin-badge">관리 모드</span>` : ""}
+          ${adminBtn}
+        </div>
       </div>
-      <div class="top-actions">
-        ${admin ? `<span class="admin-badge">관리 모드</span>` : ""}
-        ${adminBtn}
-      </div>
+      <nav class="event-nav" aria-label="이벤트">${nav}</nav>
     </header>
   `;
 }
 
 /**
- * 이벤트 목록 홈을 만든다.
+ * 선택된 이벤트 칩이 가로 스크롤 안에 보이게 한다.
+ */
+function revealActiveNav() {
+  const nav = document.querySelector(".event-nav");
+  const active = nav && nav.querySelector(".is-on");
+  if (!nav || !active) {
+    return;
+  }
+  const navBox = nav.getBoundingClientRect();
+  const chipBox = active.getBoundingClientRect();
+  const shift = chipBox.left - navBox.left - (nav.clientWidth - chipBox.width) / 2;
+  nav.scrollLeft += shift;
+}
+
+/**
+ * 첫 화면 랜딩을 만든다.
  *
- * @param {object} state 이벤트 상태
  * @return {string} HTML
  */
-function renderHome(state) {
-  const bingoWinners = state.bingo.participants
-      .filter((person) => store.bingoLineCount(person.marks) > 0).length;
-  const pocketWinners = state.pocket.participants
-      .filter((person) => store.pocketComplete(person.pockets)).length;
-  const attendWinners = state.attend.participants
-      .filter((person) => store.attendComplete(person.days)).length;
-
+function renderHome() {
   return `
-    <section class="hero">
-      <p class="eyebrow">테이블 이벤트</p>
-      <h1>오늘의 보드를 고르세요</h1>
-      <p class="lede">참여자 이름과 달성 칸은 관리자가 기록합니다. 전광판처럼 이 화면을 띄워 두면 됩니다.</p>
-    </section>
-    <section class="event-grid">
-      <a class="event-card" href="#/bingo">
-        <span class="event-kicker">EVENT 01</span>
-        <h2>3×3 빙고</h2>
-        <p>아홉 칸 미션 중 가로·세로·대각선 한 줄을 완성하면 빙고입니다.</p>
-        <dl>
-          <div><dt>참여자</dt><dd>${state.bingo.participants.length}명</dd></div>
-          <div><dt>빙고</dt><dd>${bingoWinners}명</dd></div>
-        </dl>
-        <p class="card-updated">${escapeHtml(formatUpdated(state.bingo.updatedAt))}</p>
-      </a>
-      <a class="event-card" href="#/pocket">
-        <span class="event-kicker">EVENT 02</span>
-        <h2>10~A 포켓</h2>
-        <p>텐부터 에이스까지, 모든 포켓으로 승리하면 당첨입니다.</p>
-        <dl>
-          <div><dt>참여자</dt><dd>${state.pocket.participants.length}명</dd></div>
-          <div><dt>당첨</dt><dd>${pocketWinners}명</dd></div>
-        </dl>
-        <p class="card-updated">${escapeHtml(formatUpdated(state.pocket.updatedAt))}</p>
-      </a>
-      <a class="event-card" href="#/attend">
-        <span class="event-kicker">EVENT 03</span>
-        <h2>데일리 출석</h2>
-        <p>월요일부터 일요일까지 매일 출석을 기록합니다. 일주일을 채우면 만근입니다.</p>
-        <dl>
-          <div><dt>참여자</dt><dd>${state.attend.participants.length}명</dd></div>
-          <div><dt>만근</dt><dd>${attendWinners}명</dd></div>
-        </dl>
-        <p class="card-updated">${escapeHtml(formatUpdated(state.attend.updatedAt))}</p>
-      </a>
+    <section class="landing">
+      <div class="landing-table" aria-hidden="true">
+        <span class="pcard red landing-card"><b>K</b><i>♥</i></span>
+        <span class="pcard black landing-card"><b>M</b><i>♠</i></span>
+        <span class="pcard red landing-card"><b>G</b><i>♦</i></span>
+        <span class="pcard black landing-card"><b>M</b><i>♣</i></span>
+      </div>
+      <p class="eyebrow">HOLDEM PUB</p>
+      <h1>오늘 밤의 테이블</h1>
+      <p class="lede">위 메뉴에서 보드를 고르면 전광판이 바로 켜집니다.</p>
     </section>
   `;
 }
