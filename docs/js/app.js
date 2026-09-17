@@ -106,6 +106,7 @@ function renderBoardToolbar(options) {
 function renderBoardStamp(iso) {
   return `<p class="board-stamp">${escapeHtml(formatUpdated(iso))}</p>`;
 }
+
 function render() {
   const root = document.getElementById("app");
   const state = store.load();
@@ -275,8 +276,10 @@ function renderBingo(state, admin) {
         ` : ""}
       </section>
       <div class="bingo-layout">
-        <div class="felt-board" aria-label="3x3 빙고판">
-          <div class="bingo-grid">${cells}</div>
+        <div class="felt-frame">
+          <div class="felt-board" aria-label="3x3 빙고판">
+            <div class="bingo-grid">${cells}</div>
+          </div>
           ${renderBoardStamp(state.bingo.updatedAt)}
         </div>
         ${renderPeoplePanel({
@@ -381,8 +384,10 @@ function renderPocket(state, admin) {
           </aside>
         ` : ""}
       </section>
-      <div class="felt-board pocket-board" aria-label="10부터 에이스 포켓 보드">
-        <div class="pocket-cols">${columns}</div>
+      <div class="felt-frame pocket-frame">
+        <div class="felt-board pocket-board" aria-label="10부터 에이스 포켓 보드">
+          <div class="pocket-cols">${columns}</div>
+        </div>
         ${renderBoardStamp(state.pocket.updatedAt)}
       </div>
       <div class="bingo-layout">
