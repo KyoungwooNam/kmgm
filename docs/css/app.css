@@ -232,6 +232,51 @@ a {
   color: var(--coral);
 }
 
+.card-updated {
+  margin: 16px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.board-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 0 0 14px;
+}
+
+  .board-toolbar .ghost {
+    min-height: 40px;
+  }
+
+.capture-updated {
+  display: none;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.board-capture {
+  display: grid;
+  gap: 16px;
+}
+
+body.is-capturing .capture-updated {
+  display: block;
+}
+
+body.is-capturing .no-capture {
+  display: none !important;
+}
+
+body.is-capturing .board-capture {
+  padding: 20px;
+  background: var(--navy-deep);
+  border-radius: 16px;
+}
+
 .event-head {
   display: flex;
   justify-content: space-between;

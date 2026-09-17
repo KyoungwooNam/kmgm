@@ -38,6 +38,7 @@ export function defaultState() {
     bingo: {
       title: "3×3 빙고",
       subtitle: "한 줄을 완성하면 빙고입니다.",
+      updatedAt: null,
       cells: [
         "포켓페어 승리",
         "플러시",
@@ -54,6 +55,7 @@ export function defaultState() {
     pocket: {
       title: "10~A 포켓",
       subtitle: "10·J·Q·K·A 포켓으로 각각 승리하면 당첨입니다.",
+      updatedAt: null,
       participants: [],
     },
   };
@@ -111,13 +113,64 @@ export function save(state) {
  * 상태를 바꿔 저장한다.
  *
  * @param {function(object): void} mutator 상태 변경 함수
+ * @param {"bingo"|"pocket"} [eventKey] 갱신 시각을 적을 이벤트
  * @return {object} 변경된 상태
  */
-export function update(mutator) {
+export function update(mutator, eventKey) {
   const state = load();
   mutator(state);
+  if (eventKey && state[eventKey]) {
+    state[eventKey].updatedAt = new Date().toISOString();
+  }
   save(state);
   return state;
+}
+
+/**
+ * 빙고 참여자를 진행이 많은 순으로 정렬한다.
+ *
+ * @param {object[]} people 참여자
+ * @return {object[]} 정렬된 복사본
+ */
+export function sortBingoPeople(people) {
+  return [...people].sort((left, right) => {
+    const lineDiff = bingoLineCount(right.marks) - bingoLineCount(left.marks);
+    if (lineDiff) {
+      return lineDiff;
+    }
+    const cellDiff = right.marks.filter(Boolean).length - left.marks.filter(Boolean).length;
+    if (cellDiff) {
+      return cellDiff;
+    }
+    return left.name.localeCompare(right.name, "ko");
+  });
+}
+
+/**
+ * 포켓 참여자를 진행이 많은 순으로 정렬한다.
+ *
+ * @param {object[]} people 참여자
+ * @return {object[]} 정렬된 복사본
+ */
+export function sortPocketPeople(people) {
+  return [...people].sort((left, right) => {
+    const leftCount = POCKETS.filter((pocket) => left.pockets[pocket.key]).length;
+    const rightCount = POCKETS.filter((pocket) => right.pockets[pocket.key]).length;
+    if (rightCount !== leftCount) {
+      return rightCount - leftCount;
+    }
+    return left.name.localeCompare(right.name, "ko");
+  });
+}
+
+/**
+ * 포켓 달성 칸 수를 센다.
+ *
+ * @param {Object<string, boolean>} wins 포켓 표시
+ * @return {number} 채운 칸 수
+ */
+export function pocketCount(wins) {
+  return POCKETS.filter((pocket) => Boolean(wins && wins[pocket.key])).length;
 }
 
 /**
@@ -215,6 +268,7 @@ function migrate(parsed) {
 
   base.bingo.title = bingo.title || base.bingo.title;
   base.bingo.subtitle = bingo.subtitle || base.bingo.subtitle;
+  base.bingo.updatedAt = bingo.updatedAt || null;
   if (Array.isArray(bingo.cells) && bingo.cells.length === 9) {
     base.bingo.cells = bingo.cells.map((cell) => String(cell || ""));
   }
@@ -222,6 +276,7 @@ function migrate(parsed) {
 
   base.pocket.title = pocket.title || base.pocket.title;
   base.pocket.subtitle = pocket.subtitle || base.pocket.subtitle;
+  base.pocket.updatedAt = pocket.updatedAt || null;
   base.pocket.participants = normalizePocketPeople(pocket.participants);
   return base;
 }

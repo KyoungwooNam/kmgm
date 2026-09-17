@@ -13,6 +13,7 @@ const ui = {
   selectedBingoId: null,
   selectedPocketId: null,
   editingCell: null,
+  downloading: null,
 };
 
 /**
@@ -41,7 +42,61 @@ function route() {
   return hash.startsWith("/") ? hash : `/${hash}`;
 }
 
-/** 화면을 다시 그린다. */
+/**
+ * 마지막 업데이트 시각을 한국어로 표시한다.
+ *
+ * @param {string|null} iso ISO 시각
+ * @return {string} 표시 문구
+ */
+function formatUpdated(iso) {
+  if (!iso) {
+    return "마지막 업데이트 없음";
+  }
+  const text = new Intl.DateTimeFormat("ko-KR", {
+    year: "numeric",
+    month: "numeric",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+  return `마지막 업데이트 ${text}`;
+}
+
+/**
+ * 파일 이름에 쓸 날짜를 만든다.
+ *
+ * @param {Date} date 시각
+ * @return {string} YYYYMMDD-HHMM
+ */
+function formatFileStamp(date) {
+  const pad = (value) => String(value).padStart(2, "0");
+  return [
+    date.getFullYear(),
+    pad(date.getMonth() + 1),
+    pad(date.getDate()),
+    "-",
+    pad(date.getHours()),
+    pad(date.getMinutes()),
+  ].join("");
+}
+
+/**
+ * 이벤트 페이지 상단의 날짜와 이미지 저장 버튼을 만든다.
+ *
+ * @param {object} options 표시 옵션
+ * @return {string} HTML
+ */
+function renderBoardToolbar(options) {
+  const {updatedAt, action, busy} = options;
+  return `
+    <div class="board-toolbar no-capture">
+      <time class="updated-at">${escapeHtml(formatUpdated(updatedAt))}</time>
+      <button class="ghost" data-action="${escapeHtml(action)}" type="button" ${busy ? "disabled" : ""}>
+        ${busy ? "저장 중..." : "이미지 저장"}
+      </button>
+    </div>
+  `;
+}
 function render() {
   const root = document.getElementById("app");
   const state = store.load();
@@ -124,6 +179,7 @@ function renderHome(state) {
           <div><dt>참여자</dt><dd>${state.bingo.participants.length}명</dd></div>
           <div><dt>빙고</dt><dd>${bingoWinners}명</dd></div>
         </dl>
+        <p class="card-updated">${escapeHtml(formatUpdated(state.bingo.updatedAt))}</p>
       </a>
       <a class="event-card" href="#/pocket">
         <span class="event-kicker">EVENT 02</span>
@@ -133,6 +189,7 @@ function renderHome(state) {
           <div><dt>참여자</dt><dd>${state.pocket.participants.length}명</dd></div>
           <div><dt>당첨</dt><dd>${pocketWinners}명</dd></div>
         </dl>
+        <p class="card-updated">${escapeHtml(formatUpdated(state.pocket.updatedAt))}</p>
       </a>
     </section>
   `;
@@ -146,12 +203,13 @@ function renderHome(state) {
  * @return {string} HTML
  */
 function renderBingo(state, admin) {
-  const selected = state.bingo.participants.find((person) => person.id === ui.selectedBingoId);
+  const people = store.sortBingoPeople(state.bingo.participants);
+  const selected = people.find((person) => person.id === ui.selectedBingoId);
   const lineCells = selected ? store.bingoLineCells(selected.marks) : new Set();
-  const winners = state.bingo.participants.filter((person) => store.bingoLineCount(person.marks) > 0);
+  const winners = people.filter((person) => store.bingoLineCount(person.marks) > 0);
 
   const cells = state.bingo.cells.map((label, index) => {
-    const names = state.bingo.participants
+    const names = people
         .filter((person) => person.marks[index])
         .map((person) => person.name);
     const selectedOn = Boolean(selected && selected.marks[index]);
@@ -178,44 +236,52 @@ function renderBingo(state, admin) {
   }).join("");
 
   return `
-    <section class="event-head">
-      <div>
-        <p class="eyebrow">EVENT 01</p>
-        ${admin
-            ? `<input class="title-edit" data-field="bingo-title" value="${escapeHtml(state.bingo.title)}" maxlength="32" />`
-            : `<h1>${escapeHtml(state.bingo.title)}</h1>`}
-        ${admin
-            ? `<input class="sub-edit" data-field="bingo-subtitle" value="${escapeHtml(state.bingo.subtitle)}" maxlength="80" />`
-            : `<p>${escapeHtml(state.bingo.subtitle)}</p>`}
-      </div>
-      ${winners.length ? `
-        <aside class="winner-strip">
-          <strong>빙고</strong>
-          <span>${winners.map((person) => escapeHtml(person.name)).join(" · ")}</span>
-        </aside>
-      ` : ""}
-    </section>
+    ${renderBoardToolbar({
+      updatedAt: state.bingo.updatedAt,
+      action: "download-bingo",
+      busy: ui.downloading === "bingo",
+    })}
     ${admin ? `
-      <p class="hint">
+      <p class="hint no-capture">
         ${selected
             ? `<b>${escapeHtml(selected.name)}</b>의 칸을 누르면 기록이 바뀝니다. 참여자 선택을 해제하면 칸 문구를 수정합니다.`
             : "참여자를 고른 뒤 칸을 누르면 달성 표시가 됩니다. 선택하지 않은 채 칸을 누르면 문구를 고칩니다."}
       </p>
     ` : ""}
-    <div class="bingo-layout">
-      <div class="felt-board" aria-label="3x3 빙고판">
-        <div class="bingo-grid">${cells}</div>
+    <div class="board-capture" data-capture="bingo">
+      <section class="event-head">
+        <div>
+          <p class="eyebrow">EVENT 01</p>
+          ${admin
+              ? `<input class="title-edit" data-field="bingo-title" value="${escapeHtml(state.bingo.title)}" maxlength="32" />`
+              : `<h1>${escapeHtml(state.bingo.title)}</h1>`}
+          ${admin
+              ? `<input class="sub-edit" data-field="bingo-subtitle" value="${escapeHtml(state.bingo.subtitle)}" maxlength="80" />`
+              : `<p>${escapeHtml(state.bingo.subtitle)}</p>`}
+          <p class="capture-updated">${escapeHtml(formatUpdated(state.bingo.updatedAt))}</p>
+        </div>
+        ${winners.length ? `
+          <aside class="winner-strip">
+            <strong>빙고</strong>
+            <span>${winners.map((person) => escapeHtml(person.name)).join(" · ")}</span>
+          </aside>
+        ` : ""}
+      </section>
+      <div class="bingo-layout">
+        <div class="felt-board" aria-label="3x3 빙고판">
+          <div class="bingo-grid">${cells}</div>
+        </div>
+        ${renderPeoplePanel({
+          admin,
+          people,
+          selectedId: ui.selectedBingoId,
+          eventKey: "bingo",
+          statusOf: (person) => {
+            const lines = store.bingoLineCount(person.marks);
+            return lines > 0 ? `빙고 ${lines}줄` : `${person.marks.filter(Boolean).length}/9`;
+          },
+        })}
       </div>
-      ${renderPeoplePanel({
-        admin,
-        people: state.bingo.participants,
-        selectedId: ui.selectedBingoId,
-        eventKey: "bingo",
-        statusOf: (person) => {
-          const lines = store.bingoLineCount(person.marks);
-          return lines > 0 ? `빙고 ${lines}줄` : `${person.marks.filter(Boolean).length}/9`;
-        },
-      })}
     </div>
   `;
 }
@@ -228,11 +294,12 @@ function renderBingo(state, admin) {
  * @return {string} HTML
  */
 function renderPocket(state, admin) {
-  const winners = state.pocket.participants.filter((person) => store.pocketComplete(person.pockets));
-  const selected = state.pocket.participants.find((person) => person.id === ui.selectedPocketId);
+  const people = store.sortPocketPeople(state.pocket.participants);
+  const winners = people.filter((person) => store.pocketComplete(person.pockets));
+  const selected = people.find((person) => person.id === ui.selectedPocketId);
 
   const columns = store.POCKETS.map((pocket) => {
-    const names = state.pocket.participants
+    const names = people
         .filter((person) => person.pockets[pocket.key])
         .map((person) => person.name);
     return `
@@ -251,9 +318,9 @@ function renderPocket(state, admin) {
     `;
   }).join("");
 
-  const rows = state.pocket.participants.map((person) => {
+  const rows = people.map((person) => {
     const done = store.pocketComplete(person.pockets);
-    const count = store.POCKETS.filter((pocket) => person.pockets[pocket.key]).length;
+    const count = store.pocketCount(person.pockets);
     const marks = store.POCKETS.map((pocket) => {
       const on = person.pockets[pocket.key];
       if (!admin) {
@@ -283,51 +350,59 @@ function renderPocket(state, admin) {
   }).join("");
 
   return `
-    <section class="event-head">
-      <div>
-        <p class="eyebrow">EVENT 02</p>
-        ${admin
-            ? `<input class="title-edit" data-field="pocket-title" value="${escapeHtml(state.pocket.title)}" maxlength="32" />`
-            : `<h1>${escapeHtml(state.pocket.title)}</h1>`}
-        ${admin
-            ? `<input class="sub-edit" data-field="pocket-subtitle" value="${escapeHtml(state.pocket.subtitle)}" maxlength="80" />`
-            : `<p>${escapeHtml(state.pocket.subtitle)}</p>`}
+    ${renderBoardToolbar({
+      updatedAt: state.pocket.updatedAt,
+      action: "download-pocket",
+      busy: ui.downloading === "pocket",
+    })}
+    ${admin ? `<p class="hint no-capture">표의 칸을 누르면 그 포켓으로 승리한 기록이 바뀝니다. 다섯 칸을 모두 채우면 당첨입니다.</p>` : ""}
+    <div class="board-capture" data-capture="pocket">
+      <section class="event-head">
+        <div>
+          <p class="eyebrow">EVENT 02</p>
+          ${admin
+              ? `<input class="title-edit" data-field="pocket-title" value="${escapeHtml(state.pocket.title)}" maxlength="32" />`
+              : `<h1>${escapeHtml(state.pocket.title)}</h1>`}
+          ${admin
+              ? `<input class="sub-edit" data-field="pocket-subtitle" value="${escapeHtml(state.pocket.subtitle)}" maxlength="80" />`
+              : `<p>${escapeHtml(state.pocket.subtitle)}</p>`}
+          <p class="capture-updated">${escapeHtml(formatUpdated(state.pocket.updatedAt))}</p>
+        </div>
+        ${winners.length ? `
+          <aside class="winner-strip">
+            <strong>당첨</strong>
+            <span>${winners.map((person) => escapeHtml(person.name)).join(" · ")}</span>
+          </aside>
+        ` : ""}
+      </section>
+      <div class="felt-board pocket-board" aria-label="10부터 에이스 포켓 보드">
+        <div class="pocket-cols">${columns}</div>
       </div>
-      ${winners.length ? `
-        <aside class="winner-strip">
-          <strong>당첨</strong>
-          <span>${winners.map((person) => escapeHtml(person.name)).join(" · ")}</span>
-        </aside>
-      ` : ""}
-    </section>
-    ${admin ? `<p class="hint">표의 칸을 누르면 그 포켓으로 승리한 기록이 바뀝니다. 다섯 칸을 모두 채우면 당첨입니다.</p>` : ""}
-    <div class="felt-board pocket-board" aria-label="10부터 에이스 포켓 보드">
-      <div class="pocket-cols">${columns}</div>
-    </div>
-    <div class="bingo-layout">
-      <div class="table-wrap">
-        <table class="score">
-          <thead>
-            <tr>
-              <th>이름</th>
-              ${store.POCKETS.map((pocket) => `<th>${pocket.label}</th>`).join("")}
-              <th>상태</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rows || `<tr><td colspan="7" class="empty">아직 참여자가 없습니다.</td></tr>`}
-          </tbody>
-        </table>
+      <div class="bingo-layout">
+        <div class="table-wrap">
+          <table class="score">
+            <thead>
+              <tr>
+                <th>이름</th>
+                ${store.POCKETS.map((pocket) => `<th>${pocket.label}</th>`).join("")}
+                <th>상태</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${rows || `<tr><td colspan="7" class="empty">아직 참여자가 없습니다.</td></tr>`}
+            </tbody>
+          </table>
+        </div>
+        ${renderPeoplePanel({
+          admin,
+          people,
+          selectedId: ui.selectedPocketId,
+          eventKey: "pocket",
+          statusOf: (person) => store.pocketComplete(person.pockets)
+              ? "당첨"
+              : `${store.pocketCount(person.pockets)}/5`,
+        })}
       </div>
-      ${renderPeoplePanel({
-        admin,
-        people: state.pocket.participants,
-        selectedId: ui.selectedPocketId,
-        eventKey: "pocket",
-        statusOf: (person) => store.pocketComplete(person.pockets)
-            ? "당첨"
-            : `${store.POCKETS.filter((pocket) => person.pockets[pocket.key]).length}/5`,
-      })}
     </div>
   `;
 }
@@ -347,7 +422,7 @@ function renderPeoplePanel(options) {
         <em>${escapeHtml(statusOf(person))}</em>
       </button>
       ${admin ? `
-        <button class="icon-btn" data-action="remove-${eventKey}" data-id="${escapeHtml(person.id)}" type="button" aria-label="${escapeHtml(person.name)} 삭제">×</button>
+        <button class="icon-btn no-capture" data-action="remove-${eventKey}" data-id="${escapeHtml(person.id)}" type="button" aria-label="${escapeHtml(person.name)} 삭제">×</button>
       ` : ""}
     </li>
   `).join("");
@@ -359,7 +434,7 @@ function renderPeoplePanel(options) {
         <span>${people.length}명</span>
       </div>
       ${admin ? `
-        <form class="add-form" data-form="add-${eventKey}">
+        <form class="add-form no-capture" data-form="add-${eventKey}">
           <input name="name" type="text" maxlength="16" placeholder="이름 입력" autocomplete="off" required />
           <button class="gold" type="submit">등록</button>
         </form>
@@ -368,7 +443,7 @@ function renderPeoplePanel(options) {
         ${items || `<li class="empty-row">아직 없습니다.</li>`}
       </ul>
       ${admin && people.length ? `
-        <button class="ghost danger" data-action="reset-${eventKey}" type="button">명단 초기화</button>
+        <button class="ghost danger no-capture" data-action="reset-${eventKey}" type="button">명단 초기화</button>
       ` : ""}
     </aside>
   `;
@@ -491,6 +566,12 @@ function onClick(event) {
     case "pocket-mark":
       togglePocket(id, actionNode.dataset.pocket);
       break;
+    case "download-bingo":
+      downloadBoard("bingo", "3x3빙고");
+      break;
+    case "download-pocket":
+      downloadBoard("pocket", "10-A포켓");
+      break;
     default:
       break;
   }
@@ -511,7 +592,7 @@ function handleBingoCell(index) {
       if (person) {
         person.marks[index] = !person.marks[index];
       }
-    });
+    }, "bingo");
     ui.editingCell = null;
     render();
     return;
@@ -539,7 +620,7 @@ function removePerson(eventKey, id) {
   }
   store.update((next) => {
     next[eventKey].participants = next[eventKey].participants.filter((item) => item.id !== id);
-  });
+  }, eventKey);
   if (eventKey === "bingo" && ui.selectedBingoId === id) {
     ui.selectedBingoId = null;
   }
@@ -563,7 +644,7 @@ function resetPeople(eventKey) {
   }
   store.update((state) => {
     state[eventKey].participants = [];
-  });
+  }, eventKey);
   if (eventKey === "bingo") {
     ui.selectedBingoId = null;
   } else {
@@ -587,7 +668,7 @@ function togglePocket(id, pocketKey) {
     if (person) {
       person.pockets[pocketKey] = !person.pockets[pocketKey];
     }
-  });
+  }, "pocket");
   render();
 }
 
@@ -659,7 +740,7 @@ function addPerson(eventKey, form) {
         : {id: store.newId(), name, pockets: store.emptyPockets()};
     newPersonId = person.id;
     next[eventKey].participants.push(person);
-  });
+  }, eventKey);
 
   if (eventKey === "bingo") {
     ui.selectedBingoId = newPersonId;
@@ -685,37 +766,114 @@ function onFieldChange(event) {
   if (field === "bingo-title") {
     store.update((state) => {
       state.bingo.title = value.trim() || "3×3 빙고";
-    });
+    }, "bingo");
     return;
   }
   if (field === "bingo-subtitle") {
     store.update((state) => {
       state.bingo.subtitle = value.trim() || store.defaultState().bingo.subtitle;
-    });
+    }, "bingo");
     return;
   }
   if (field === "pocket-title") {
     store.update((state) => {
       state.pocket.title = value.trim() || "10~A 포켓";
-    });
+    }, "pocket");
     return;
   }
   if (field === "pocket-subtitle") {
     store.update((state) => {
       state.pocket.subtitle = value.trim() || store.defaultState().pocket.subtitle;
-    });
+    }, "pocket");
     return;
   }
   if (field === "bingo-cell") {
     const index = Number(event.target.dataset.index);
     store.update((state) => {
       state.bingo.cells[index] = value.trim() || state.bingo.cells[index];
-    });
+    }, "bingo");
     if (event.type === "change" || event.type === "focusout") {
       ui.editingCell = null;
       render();
     }
   }
+}
+
+/**
+ * 이벤트 보드를 PNG로 저장한다.
+ *
+ * @param {"bingo"|"pocket"} eventKey 이벤트
+ * @param {string} label 파일 이름에 쓸 제목
+ */
+async function downloadBoard(eventKey, label) {
+  const node = document.querySelector(`[data-capture="${eventKey}"]`);
+  if (!node) {
+    return;
+  }
+  if (typeof window.html2canvas !== "function") {
+    alert("이미지 저장 기능을 불러오지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요.");
+    return;
+  }
+  if (ui.downloading) {
+    return;
+  }
+
+  ui.downloading = eventKey;
+  render();
+  document.body.classList.add("is-capturing");
+  const captureNode = document.querySelector(`[data-capture="${eventKey}"]`);
+  try {
+    const canvas = await window.html2canvas(captureNode, {
+      backgroundColor: "#1c2228",
+      scale: Math.min(2, window.devicePixelRatio || 2),
+      useCORS: true,
+      logging: false,
+      ignoreElements: (element) => element.classList.contains("no-capture"),
+    });
+    const filename = `KMGM-${label}-${formatFileStamp(new Date())}.png`;
+    await saveCanvas(canvas, filename);
+  } catch (error) {
+    console.error(error);
+    alert("이미지 저장에 실패했습니다.");
+  } finally {
+    document.body.classList.remove("is-capturing");
+    ui.downloading = null;
+    render();
+  }
+}
+
+/**
+ * 캔버스를 파일로 내려받거나 공유한다.
+ *
+ * @param {HTMLCanvasElement} canvas 캡처 결과
+ * @param {string} filename 파일 이름
+ * @return {Promise<void>}
+ */
+async function saveCanvas(canvas, filename) {
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) {
+    throw new Error("빈 이미지");
+  }
+  const file = new File([blob], filename, {type: "image/png"});
+  if (navigator.canShare && navigator.canShare({files: [file]})) {
+    try {
+      await navigator.share({files: [file], title: filename});
+      return;
+    } catch (error) {
+      if (error && error.name === "AbortError") {
+        return;
+      }
+    }
+  }
+
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
 /**
