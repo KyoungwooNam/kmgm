@@ -114,6 +114,32 @@ function renderBoardStamp(iso) {
   return `<p class="board-stamp">${escapeHtml(formatUpdated(iso))}</p>`;
 }
 
+/**
+ * 네온 조명 레이어를 만든다.
+ *
+ * @param {"home"|"board"} kind 랜딩 또는 보드
+ * @return {string} HTML
+ */
+function renderNeonScene(kind) {
+  return `
+    <div class="neon-scene ${kind === "board" ? "board-lights no-capture" : ""}" aria-hidden="true">
+      <span class="spot spot-coral"></span>
+      <span class="spot spot-amber"></span>
+      <span class="spot spot-mint"></span>
+      <span class="beam beam-l"></span>
+      <span class="beam beam-c"></span>
+      <span class="beam beam-r"></span>
+      <span class="bulb b1"></span>
+      <span class="bulb b2"></span>
+      <span class="bulb b3"></span>
+      <span class="suit s-heart">♥</span>
+      <span class="suit s-spade">♠</span>
+      <span class="suit s-diamond">♦</span>
+      <span class="suit s-club">♣</span>
+    </div>
+  `;
+}
+
 function render() {
   const root = document.getElementById("app");
   const state = store.load();
@@ -132,6 +158,7 @@ function render() {
   }
 
   root.innerHTML = `
+    ${path !== "/" ? renderNeonScene("board") : ""}
     ${renderHeader(admin, path)}
     <main class="page">${page}</main>
     ${ui.pinOpen ? renderPinModal() : ""}
@@ -196,21 +223,7 @@ function revealActiveNav() {
 function renderHome() {
   return `
     <section class="landing">
-      <div class="neon-scene" aria-hidden="true">
-        <span class="spot spot-coral"></span>
-        <span class="spot spot-amber"></span>
-        <span class="spot spot-mint"></span>
-        <span class="beam beam-l"></span>
-        <span class="beam beam-c"></span>
-        <span class="beam beam-r"></span>
-        <span class="bulb b1"></span>
-        <span class="bulb b2"></span>
-        <span class="bulb b3"></span>
-        <span class="suit s-heart">♥</span>
-        <span class="suit s-spade">♠</span>
-        <span class="suit s-diamond">♦</span>
-        <span class="suit s-club">♣</span>
-      </div>
+      ${renderNeonScene("home")}
       <aside class="pub-ticket">
         <span>TONIGHT</span>
         <strong>프리티켓</strong>
